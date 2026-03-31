@@ -4673,7 +4673,23 @@ function bindEvents() {
   });
   document.getElementById('btnContinue').addEventListener('click', () => gotoMode());
   document.getElementById('btnFromStart').addEventListener('click', async () => {
-    if (!confirm('セーブデータを全て削除して Lv1 からやり直しますか？')) return;
+    // confirm()の代わりにカスタム確認（iOS Safariでconfirmがブロックされる対策）
+    const ok = await new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
+      overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:1.5rem;max-width:320px;width:100%;text-align:center;">
+          <div style="font-size:1rem;color:#fff;margin-bottom:1.25rem;line-height:1.6;">セーブデータを全て削除して<br>Lv1 からやり直しますか？</div>
+          <div style="display:flex;gap:0.75rem;justify-content:center;">
+            <button id="_confirmNo"  style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:#fff;cursor:pointer;font-size:0.9rem;">キャンセル</button>
+            <button id="_confirmYes" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:#c0392b;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;">はい、削除</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#_confirmYes').addEventListener('click', () => { overlay.remove(); resolve(true); });
+      overlay.querySelector('#_confirmNo').addEventListener('click',  () => { overlay.remove(); resolve(false); });
+    });
+    if (!ok) return;
     await Storage.reset();
     AppState.user = null; AppState.progress = {};
     UI.showTitleButtons(false);
