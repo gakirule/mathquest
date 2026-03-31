@@ -51,7 +51,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.5s ease;
@@ -64,17 +64,9 @@ html, body {
   pointer-events: all;
 }
 /* タイトル・モード等の中央配置画面は、padding-topで垂直中央っぽく見せる */
-#screen-title .title-content,
-#screen-name .dialog-box,
-#screen-mode .mode-select-container,
-#screen-result .result-screen,
-#screen-status .status-container {
-  margin-top: auto;
-  margin-bottom: auto;
-}
-#screen-title, #screen-name, #screen-mode,
-#screen-result, #screen-status {
-  justify-content: center;
+/* PC: 戦闘画面のみ上詰め（他は中央） */
+#screen-battle {
+  justify-content: flex-start;
 }
 
 /* ===================================================
@@ -456,10 +448,10 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.5rem 1rem;
+  padding: 1rem;
   width: 100%;
   max-width: 680px;
-  gap: 0.6rem;
+  gap: 1rem;
   z-index: 1;
 }
 
@@ -503,8 +495,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
 }
 
 /* モンスター本体を水平中央に固定 */
@@ -551,7 +543,7 @@ html, body {
 }
 
 .enemy-sprite {
-  font-size: clamp(4rem, 14vw, 6.5rem);
+  font-size: clamp(3rem, 8vw, 5rem);
   animation: enemyFloat 3s ease-in-out infinite;
   filter: drop-shadow(0 0 24px rgba(255,80,80,0.55));
   position: relative;
@@ -625,7 +617,7 @@ html, body {
   line-height: 1.6;
   color: var(--text-primary);
   margin-bottom: 1.25rem;
-  min-height: 60px;
+  font-weight: 700;
 }
 
 .answer-area {
@@ -687,7 +679,7 @@ html, body {
   z-index: 10;
 }
 
-.result-overlay.hidden { display: none; }
+.result-overlay.hidden { display: none !important; }
 
 .result-content { text-align: center; padding: 1.5rem; }
 
@@ -801,7 +793,7 @@ html, body {
   margin-bottom: 1.5rem;
   animation: levelPulse 2s ease-in-out infinite;
 }
-.level-up-banner.hidden { display: none; }
+.level-up-banner.hidden { display: none !important; }
 
 @keyframes levelPulse {
   0%, 100% { box-shadow: 0 0 10px rgba(240,192,64,0.2); }
@@ -929,7 +921,7 @@ html, body {
   flex-direction: column;
   gap: 0.5rem;
 }
-.floating-nav.hidden { display: none; }
+.floating-nav.hidden { display: none !important; }
 
 .nav-btn {
   width: 48px; height: 48px;
@@ -1498,7 +1490,11 @@ html, body {
   padding: 1rem;
   overflow-y: auto;
 }
-.explanation-overlay.hidden { display: none; }
+.explanation-overlay.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+.explanation-overlay.hidden { display: none !important; }
 
 .expl-panel {
   background: linear-gradient(160deg, #0c1428 0%, #101c38 100%);
@@ -1902,15 +1898,25 @@ html, body {
 
 /* 戦闘画面 */
 @media (max-width: 480px) {
+  /* スマホ: screen-battle を上詰め */
+  /* 他の画面は中央 */
+  #screen-title, #screen-name, #screen-mode,
+  #screen-result, #screen-status { justify-content: center; }
+#screen-result.active, #screen-title.active, #screen-mode.active,
+#screen-name.active, #screen-category.active, #screen-status.active {
+  z-index: 600;
+}
+
   .battle-layout {
-    padding: 0.5rem 0.5rem 0.5rem;
+    padding: 0.4rem 0.5rem;
     gap: 0.5rem;
   }
   .battle-header { padding: 0.3rem 0; }
   .progress-label { font-size: 0.72rem; }
 
-  /* 敵エリア */
-  .mob-frame { padding: 0.75rem; }
+  /* 敵エリア スマホ詰め */
+  .enemy-area { gap: 0.2rem; padding: 0.15rem 0; }
+  .mob-frame { gap: 0.15rem; }
   .enemy-sprite { font-size: 2.5rem; }
   .enemy-name { font-size: 0.75rem; }
 
@@ -1980,15 +1986,15 @@ html, body {
   .mode-card-desc { font-size: 0.78rem; }
 }
 
-/* 入力時のズーム防止（iOS） */
-.rpg-input, .answer-input {
-  font-size: max(16px, 1rem) !important;
-}
+/* 入力時のズーム防止（iOS）: スマホのみ適用 */
 
-/* overflow防止 */
-.screen, .battle-layout, .question-card, .expl-panel {
+/* overflow防止: screenとexpl-panelのみ（battle-layout/question-cardは個別設定） */
+.screen, .expl-panel {
   box-sizing: border-box;
   max-width: 100vw;
+}
+.battle-layout, .question-card {
+  box-sizing: border-box;
 }
 
 /* スマホ: 入力欄と決定ボタンの比率固定 */
@@ -2012,10 +2018,14 @@ html, body {
     padding: 0.65rem 0.3rem;
     white-space: nowrap;
   }
+  /* iOSズーム防止: スマホのみfont-size 16px以上を強制 */
+  .rpg-input, .answer-input {
+    font-size: max(16px, 1rem) !important;
+  }
 }
 
   
-/* === ver1.20 ダメージエフェクト CSS === */
+/* === ver1.21 ダメージエフェクト CSS === */
 .slash-effect { position: fixed; pointer-events: none; z-index: 9000; }
 .slash-line { position: absolute; border-radius: 2px; transform-origin: left center; animation: slashFade 0.45s ease-out forwards; }
 .slash-line-1 { width: 70px; height: 4px; background: linear-gradient(90deg, transparent, #fff 30%, #ff8888 70%, transparent); box-shadow: 0 0 8px 2px rgba(255,100,100,0.8), 0 0 20px 4px rgba(255,60,60,0.4); transform: rotate(-35deg); top: 10px; left: -20px; }
@@ -2035,6 +2045,47 @@ html, body {
 @keyframes heroSlashFade { 0% { opacity: 1; } 50% { opacity: 0.9; } 100% { opacity: 0; transform: scaleX(1.2) translateX(10px); } }
 .screen-damage-flash { position: fixed; inset: 0; background: rgba(200,0,0,0.18); pointer-events: none; z-index: 8999; animation: damageFlash 0.4s ease-out forwards; }
 @keyframes damageFlash { 0% { opacity: 1; } 40% { opacity: 0.6; } 100% { opacity: 0; } }
+
+/* ===================================================
+   撃破エフェクト
+=================================================== */
+.defeat-popup {
+  position: fixed;
+  pointer-events: none;
+  font-family: var(--font-title);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255,215,0,0.9), 0 0 40px rgba(255,150,0,0.6);
+  animation: defeatFly 0.8s ease-out forwards;
+  z-index: 9500;
+  white-space: nowrap;
+}
+@keyframes defeatFly {
+  0%   { opacity: 1; transform: translateY(0) scale(0.8); }
+  30%  { opacity: 1; transform: translateY(-20px) scale(1.3); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.0); }
+}
+
+/* 敵消滅アニメーション */
+.enemy-defeated {
+  animation: enemyDefeat 0.8s ease-out forwards !important;
+}
+@keyframes enemyDefeat {
+  0%   { opacity: 1; transform: scale(1); filter: brightness(1); }
+  30%  { opacity: 1; transform: scale(1.3); filter: brightness(3) saturate(0); }
+  60%  { opacity: 0.5; transform: scale(0.8) rotate(10deg); filter: brightness(2); }
+  100% { opacity: 0; transform: scale(0) rotate(20deg); }
+}
+
+/* 敵HPに数値を表示するラベル */
+.enemy-hp-nums {
+  font-size: 0.65rem;
+  color: rgba(255,160,160,0.7);
+  font-family: var(--font-body, sans-serif);
+  margin-top: 0.1rem;
+  font-variant-numeric: tabular-nums;
+}
 </style>
 </head>
 <body>
@@ -2166,6 +2217,7 @@ html, body {
             </div>
             <div class="enemy-hp-wrap">
               <div class="enemy-hp-bar"><div class="enemy-hp-fill" id="enemyHpFill"></div></div>
+              <div class="enemy-hp-nums" id="enemyHpNums"></div>
             </div>
           </div>
         </div>
@@ -2303,6 +2355,69 @@ html, body {
   </div>
 
 <script>
+
+/* === EnemySystem === */
+const EnemySystem = {
+
+  // 学年ラベル → HP設定
+  HP_TABLE: {
+    normal: { '小1':15, '小2':15, '小3':18, '小4':20, '小5':28, '小6':38, '中1':50, '中2':65, '中3':85 },
+    mini:   { '小1':35, '小2':35, '小3':42, '小4':50, '小5':70, '小6':95, '中1':125,'中2':160,'中3':210 },
+    boss:   { '小1':60, '小2':60, '小3':70, '小4':80, '小5':110,'小6':150,'中1':200,'中2':260,'中3':340 },
+  },
+
+  // 学年ラベル → ダメージ補正
+  DMG_BONUS: {
+    '小1':0,'小2':0,'小3':0,'小4':0,'小5':2,'小6':4,'中1':7,'中2':10,'中3':14
+  },
+
+  BASE_ATK: 10,
+
+  // 問題の学年ラベルを返す（カテゴリのgradeLabelの最初の学年）
+  _gradeOf(q) {
+    const cat = typeof CATEGORIES !== 'undefined'
+      ? CATEGORIES.find(c => c.id === q.categoryId)
+      : null;
+    if (!cat) return '小4';
+    // '小4〜小5相当' → '小4'
+    return cat.gradeLabel.replace(/相当/, '').split('〜')[0];
+  },
+
+  // 敵の種別を返す
+  _typeOf(q) {
+    if (q.isFinal) return 'boss';
+    if (q.isMini)  return 'mini';
+    return 'normal';
+  },
+
+  // 敵HPを生成（絵文字・名前も確定して保持）
+  makeEnemy(q) {
+    const grade = this._gradeOf(q);
+    const type  = this._typeOf(q);
+    const table = this.HP_TABLE[type] || this.HP_TABLE.normal;
+    const maxHp = table[grade] || table['小4'];
+    // 通常敵の絵文字をここで確定（問題が変わっても同じ敵を維持するため）
+    const sprites = ['👺','🧟','🐙','👾','🦇','🐺','🦑','🤖'];
+    const sprite = q.isRevenge ? '👻' : sprites[Math.floor(Math.random() * sprites.length)];
+    const name   = q.isRevenge ? '苦手の亡霊' : '魔物';
+    return { maxHp, hp: maxHp, type, grade, sprite, name, isBoss: !!q.isBoss };
+  },
+
+  // 与ダメージ計算
+  calcDamage(q) {
+    const grade = this._gradeOf(q);
+    const bonus = this.DMG_BONUS[grade] || 0;
+    return this.BASE_ATK + bonus;
+  },
+
+  // 被ダメージ計算（自キャラ）
+  calcPlayerDamage(q) {
+    if (q.isFinal) return 3;
+    if (q.isMini)  return 2;
+    return 1;
+  },
+};
+
 /* === questions.js === */
 /**
  * questions.js v1.17
@@ -3730,7 +3845,7 @@ const UI = {
       bossSprite.className   = q.isMini ? 'boss-battle-sprite mini-boss' : 'boss-battle-sprite final-boss';
       document.getElementById('bossBattleName').textContent = q.isMini ? `ミニボス・${boss.name}` : `【大魔王】${boss.name}`;
       document.getElementById('bossBattleSub').textContent  = q.isMini ? '中間試練！' : '最終決戦！';
-      document.getElementById('bossBattleHpFill').style.width = `${100-(index*(100/total))}%`;
+      // ボスHPバーもupdateEnemyHpで管理
       const glow = document.getElementById('bossBattleBgGlow');
       glow.className = q.isMini ? 'boss-battle-bg-glow mini-glow' : 'boss-battle-bg-glow final-glow';
     } else {
@@ -3738,13 +3853,8 @@ const UI = {
       mobFrame.classList.remove('hidden');
       battleBg.className = 'scene-bg scene-dungeon';
       qCard.classList.remove('is-boss');
-      const sprites = ['👺','🧟','🐙','👾','🦇','🐺','🦑','🤖'];
-      document.getElementById('enemySprite').textContent = sprites[Math.floor(Math.random()*sprites.length)];
-      const enemyLvNum = Math.floor(index / 2) + 1;
-      const enemyLvEl = document.getElementById('enemyLv');
-      if (enemyLvEl) enemyLvEl.textContent = 'Lv.' + enemyLvNum;
-      document.getElementById('enemyName').textContent   = q.isRevenge ? '苦手の亡霊' : '魔物';
-      document.getElementById('enemyHpFill').style.width = `${100-(index*(100/total))}%`;
+      // 絵文字・名前・LvはupdateEnemyHpでcurrentEnemyから反映
+      // 敵HPバーはupdateEnemyHpで管理（旧: index比率は廃止）
     }
   },
 
@@ -3793,11 +3903,10 @@ const UI = {
       sectionsEl.appendChild(div);
     }
 
-    // リベンジボタン：類問がある問題だけ有効化
+    // リベンジボタン：常に有効（variantsがなくても元問題を再出題できる）
     const revengeBtn = document.getElementById('btnRevengeFromExpl');
-    const hasVariants = q.variants && q.variants.length > 0;
-    revengeBtn.disabled = !hasVariants;
-    revengeBtn.style.opacity = hasVariants ? '1' : '0.4';
+    revengeBtn.disabled = false;
+    revengeBtn.style.opacity = '1';
 
     overlay.classList.remove('hidden');
     // 確実に最上部へ（3段階リセット）
@@ -3879,6 +3988,10 @@ const UI = {
     } else {
       banner.classList.add('hidden');
     }
+    // リベンジ戦のときはボタンを差し替え
+    const isRevenge = AppState.currentMode === 'revenge';
+    document.getElementById('btnPlayAgain').textContent = isRevenge ? '冒険へ出る！' : 'もう一度！';
+    document.getElementById('btnBackToMap').textContent = isRevenge ? 'スタート画面に戻る' : 'モード選択へ';
   },
 
   async renderStatus(user, progress) {
@@ -4061,6 +4174,75 @@ const UI = {
   },
 
 
+
+  // -------------------------------------------------------
+  // 敵HPバー更新
+  // -------------------------------------------------------
+  updateEnemyHp(enemy) {
+    if (!enemy) return;
+    const ratio = enemy.hp / enemy.maxHp;
+    const pct   = Math.max(0, ratio * 100).toFixed(1);
+
+    // HPバー更新
+    const normalFill = document.getElementById('enemyHpFill');
+    const bossFill   = document.getElementById('bossBattleHpFill');
+    if (normalFill) normalFill.style.width = pct + '%';
+    if (bossFill)   bossFill.style.width   = pct + '%';
+
+    // HP数値
+    const numsEl = document.getElementById('enemyHpNums');
+    if (numsEl) numsEl.textContent = enemy.hp + ' / ' + enemy.maxHp;
+
+    // 通常敵の絵文字・名前・Lvを currentEnemy から反映
+    // （isBossでない場合のみ。ボスはrenderQuestionが管理）
+    if (!enemy.isBoss) {
+      const spriteEl = document.getElementById('enemySprite');
+      const nameEl   = document.getElementById('enemyName');
+      const lvEl     = document.getElementById('enemyLv');
+      if (spriteEl && enemy.sprite) spriteEl.textContent = enemy.sprite;
+      if (nameEl   && enemy.name)   nameEl.textContent   = enemy.name;
+      if (lvEl) {
+        // HPの残量に応じてLvを表示（撃破数 + 1）
+        lvEl.textContent = 'Lv.' + (AppState.defeatedCount + 1);
+      }
+    }
+  },
+
+  // -------------------------------------------------------
+  // 撃破エフェクト → コールバック
+  // -------------------------------------------------------
+  showDefeatEffect(callback) {
+    const sprite = document.querySelector('#bossBattleFrame:not(.hidden) .boss-battle-sprite')
+                || document.getElementById('enemySprite');
+    const mobFrame = document.getElementById('mobFrame');
+    const bossFrame = document.getElementById('bossBattleFrame');
+    const activeFrame = (bossFrame && !bossFrame.classList.contains('hidden')) ? bossFrame : mobFrame;
+
+    // 撃破テキスト
+    const popup = document.createElement('div');
+    popup.className = 'defeat-popup';
+    popup.textContent = '撃破！';
+    if (sprite) {
+      const rect = sprite.getBoundingClientRect();
+      popup.style.left = (rect.left + rect.width/2 - 30) + 'px';
+      popup.style.top  = (rect.top - 10) + 'px';
+    } else {
+      popup.style.cssText = 'left:50%;top:30%;transform:translateX(-50%)';
+    }
+    document.body.appendChild(popup);
+
+    // 敵スプライトを消滅アニメーション
+    if (activeFrame) {
+      activeFrame.classList.add('enemy-defeated');
+    }
+
+    setTimeout(() => {
+      popup.remove();
+      if (activeFrame) activeFrame.classList.remove('enemy-defeated');
+      if (callback) callback();
+    }, 800);
+  },
+
   // -------------------------------------------------------
   // 自キャラ攻撃アニメーション
   // -------------------------------------------------------
@@ -4082,7 +4264,7 @@ const UI = {
 
 /* === app.js === */
 /**
- * app.js v1.2
+ * app.js v1.21
  *
  * 【変更点】
  * - 正解後は自動進行（btnNext廃止、0.9秒後に次問へ）
@@ -4111,6 +4293,11 @@ const AppState = {
   waitingGameOver: false,
 
   _autoAdvanceTimer: null,
+
+  // 現在の敵（HPシステム）
+  currentEnemy: null,   // { maxHp, hp, type, grade }
+  defeatedCount: 0,     // セッション中の撃破数
+  defeatPending: false, // 撃破演出中フラグ
 };
 
 // -------------------------------------------------------
@@ -4179,7 +4366,7 @@ function bindEvents() {
     if (e.isComposing || e.keyCode === 229) return;
     e.preventDefault();
     e.stopPropagation();
-    if (AppState.overlayVisible || AppState.explanationVisible) return;
+    if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending) return;
     submitAnswer();
   });
 
@@ -4193,14 +4380,23 @@ function bindEvents() {
   // 類問を次インデックスに挿入してそのまま次問へ進む
   document.getElementById('btnRevengeFromExpl').addEventListener('click', () => {
     if (!AppState.explanationVisible) return;
-    insertRevengeQuestion(); // 必ず類問を挿入
     AppState.explanationVisible = false;
     UI.hideExplanationOverlay();
-    advanceQuestion();
+    const curQ = currentQ();
+    if (curQ && curQ.isBoss) {
+      // ボス問題: 類問なし・同じボスに再挑戦
+      showCurrentQuestion();
+    } else {
+      // 通常問題: 類問を挿入して次へ
+      insertRevengeQuestion();
+      advanceQuestion();
+    }
   });
 
   // ---- 誤答解説「スキップ」----
-  document.getElementById('btnCloseExpl').addEventListener('click', () => {
+  // btnCloseExplは動的生成のため、クリックはdelegationで処理
+  document.addEventListener('click', e => {
+    if (!e.target || e.target.id !== 'btnCloseExpl') return;
     if (!AppState.explanationVisible) return;
     AppState.explanationVisible = false;
     UI.hideExplanationOverlay();
@@ -4218,19 +4414,20 @@ function bindEvents() {
     if (document.activeElement === document.getElementById('answerInput')) return;
     if (AppState.explanationVisible) {
       e.preventDefault();
-      // HP0時はゲームオーバーボタン、それ以外はリベンジボタン
       const goBtn = document.getElementById('btnGameOverFromExpl');
-      if (goBtn) {
-        goBtn.click();
-      } else {
-        document.getElementById('btnRevengeFromExpl').click();
-      }
+      if (goBtn) goBtn.click();
+      else document.getElementById('btnRevengeFromExpl').click();
       return;
     }
-    // 正解自動進行中はEnterで早送り
     if (AppState._autoAdvanceTimer) {
       e.preventDefault();
       _skipAutoAdvance();
+      return;
+    }
+    const resultScreen = document.getElementById('screen-result');
+    if (resultScreen && resultScreen.classList.contains('active')) {
+      e.preventDefault();
+      document.getElementById('btnPlayAgain')?.click();
     }
   });
 
@@ -4241,9 +4438,17 @@ function bindEvents() {
   document.getElementById('btnPlayAgain').addEventListener('click', () => {
     if (AppState.currentMode === 'random')      startRandomSession();
     else if (AppState.currentMode === 'select') startCategorySession(AppState.currentCategory);
-    else                                        startRevengeBattle();
+    else if (AppState.currentMode === 'revenge') startRandomSession(); // 冒険へ出る！
+    else                                        startRandomSession();
   });
-  document.getElementById('btnBackToMap').addEventListener('click', gotoMode);
+  document.getElementById('btnBackToMap').addEventListener('click', () => {
+    if (AppState.currentMode === 'revenge') {
+      UI.showScreen('title');
+      UI.hideNav();
+    } else {
+      gotoMode();
+    }
+  });
 
   // ステータス
   document.getElementById('navStatus').addEventListener('click', gotoStatus);
@@ -4265,6 +4470,8 @@ function initHp(isBossMode) {
 // 正解後の自動進行タイマーを早送り
 // -------------------------------------------------------
 function _skipAutoAdvance() {
+  // 撃破演出中はスキップ不可
+  if (AppState.defeatPending) return;
   if (AppState._autoAdvanceTimer) {
     clearTimeout(AppState._autoAdvanceTimer);
     AppState._autoAdvanceTimer = null;
@@ -4300,6 +4507,7 @@ function advanceQuestion() {
   AppState.sessionIndex++;
   if (AppState.sessionIndex >= AppState.sessionQuestions.length) {
     endSession();
+    return;
   } else {
     showCurrentQuestion();
   }
@@ -4346,6 +4554,9 @@ function _resetSession() {
   AppState.explanationVisible = false;
   AppState.pendingRevengeQ    = null;
   AppState.waitingGameOver    = false;
+  AppState.currentEnemy       = null;
+  AppState.defeatedCount      = 0;
+  AppState.defeatPending      = false;
   if (AppState._autoAdvanceTimer) {
     clearTimeout(AppState._autoAdvanceTimer);
     AppState._autoAdvanceTimer = null;
@@ -4416,17 +4627,25 @@ function showCurrentQuestion() {
   const q = currentQ();
   if (!q) { endSession(); return; }
 
+  // currentEnemyがnullのときだけ新しい敵を生成
+  // （撃破時にnullにセットされる。生存中は問題が変わっても同じ敵）
+  if (!AppState.currentEnemy) {
+    AppState.currentEnemy = EnemySystem.makeEnemy(q);
+  }
+
   UI.renderQuestion(
     q, AppState.sessionIndex, AppState.sessionQuestions.length,
     AppState.hp, AppState.maxHp, AppState.user
   );
+  // 敵HPバーを更新
+  UI.updateEnemyHp(AppState.currentEnemy);
 }
 
 // -------------------------------------------------------
 // 回答送信
 // -------------------------------------------------------
 async function submitAnswer() {
-  if (AppState.overlayVisible || AppState.explanationVisible) return;
+  if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending) return;
 
   const input = document.getElementById('answerInput');
   if (!input || input.disabled) return;
@@ -4462,7 +4681,8 @@ async function submitAnswer() {
   }
 
   if (!isCorrect) {
-    AppState.hp = Math.max(0, AppState.hp - 1);
+    const playerDmg = EnemySystem.calcPlayerDamage(q);
+    AppState.hp = Math.max(0, AppState.hp - playerDmg);
     UI.updateHearts(AppState.hp, AppState.maxHp);
     await Storage.addWrongRecord({ questionId: q.id, categoryId: q.categoryId });
 
@@ -4471,10 +4691,13 @@ async function submitAnswer() {
 
     // リベンジボタン制御
     const revengeBtn = document.getElementById('btnRevengeFromExpl');
-    const isDisabledForBoss = q.isBoss || AppState.waitingGameOver;
-    revengeBtn.disabled      = isDisabledForBoss;
-    revengeBtn.style.opacity = isDisabledForBoss ? '0.4' : '1';
+    // ボス問題でもリベンジボタンは押せる（類問でなく同じボスに戻る）
+    const isDisabled = AppState.waitingGameOver;
+    revengeBtn.disabled      = isDisabled;
+    revengeBtn.style.opacity = isDisabled ? '0.4' : '1';
     revengeBtn.style.display = AppState.waitingGameOver ? 'none' : '';
+    // ボスのときはボタンラベルを変更
+    revengeBtn.textContent = q.isBoss ? '⚔ 再挑戦！' : '⚔ リベンジ！（類問に挑戦）';
 
     // HP0時: ゲームオーバーボタンを表示（既存があれば削除して再生成）
     const existingGoBtn = document.getElementById('btnGameOverFromExpl');
@@ -4508,17 +4731,41 @@ async function submitAnswer() {
     }, 500);
 
   } else {
-    // 正解: 攻撃 + EXPポップアップのみ（オーバーレイなし）→ 0.9秒後に自動進行
+    // 正解: 敵にダメージを与える
+    const dmg = EnemySystem.calcDamage(q);
+    AppState.currentEnemy.hp = Math.max(0, AppState.currentEnemy.hp - dmg);
+
     UI.showHeroAttack();
-    // 攻撃モーション後に斬撃エフェクト（少し遅延させてタイミングを合わせる）
     setTimeout(() => UI.showEnemySlash(), 300);
     UI.showExpPopup(expGained);
-    // overlayVisibleは立てない → _doAdvanceAfterCorrectで直接進む
+    UI.updateEnemyHp(AppState.currentEnemy);
 
-    AppState._autoAdvanceTimer = setTimeout(() => {
-      AppState._autoAdvanceTimer = null;
-      advanceQuestion();
-    }, 900);
+    if (AppState.currentEnemy.hp <= 0) {
+      // 撃破！
+      AppState.defeatedCount++;
+      AppState.defeatPending = true;  // 撃破演出中フラグ
+      AppState._autoAdvanceTimer = setTimeout(() => {
+        AppState._autoAdvanceTimer = null;
+        UI.showDefeatEffect(() => {
+          AppState.defeatPending = false;
+          AppState.currentEnemy = null;
+          advanceQuestion();
+        });
+      }, 300);
+    } else {
+      // 生存: 同じ問題インデックスのまま次問へ
+      // ボス問題の場合は同じボス問題を繰り返す（HPが0になるまで）
+      // 通常問題の場合は次の問題に進む
+      AppState._autoAdvanceTimer = setTimeout(() => {
+        AppState._autoAdvanceTimer = null;
+        if (q.isBoss) {
+          // ボス戦継続：問題インデックスを進めず同じボスを再表示
+          showCurrentQuestion();
+        } else {
+          advanceQuestion();
+        }
+      }, 900);
+    }
   }
 }
 
@@ -4557,8 +4804,37 @@ async function endSession() {
     score: result.score, expGained: result.totalExp,
     correct: result.correct, total: result.total,
   });
+  UI.hideExplanationOverlay();
+  AppState.explanationVisible = false;
+  AppState.overlayVisible = false;
+  AppState.defeatPending = false;
   UI.renderSessionResult(result, AppState.levelResult);
   UI.showScreen('result');
+  setTimeout(() => {
+    const btnPlay = document.getElementById('btnPlayAgain');
+    const btnBack = document.getElementById('btnBackToMap');
+    const expl = document.getElementById('overlay-explanation');
+    // overlayのinlineスタイルをリセットして.hiddenクラスだけで制御
+    if (expl) {
+      expl.style.display = '';
+      expl.style.pointerEvents = '';
+      expl.style.zIndex = '';
+    }
+    // screenのinlineスタイルをリセット（CSSクラスで制御させる）
+    document.querySelectorAll('.screen').forEach(s => {
+      s.style.pointerEvents = '';
+      s.style.zIndex = '';
+    });
+    if (btnPlay) {
+      btnPlay.disabled = false;
+      btnPlay.style.pointerEvents = '';
+      btnPlay.focus();
+    }
+    if (btnBack) {
+      btnBack.disabled = false;
+      btnBack.style.pointerEvents = '';
+    }
+  }, 100);
 }
 
 async function gotoStatus() {
@@ -4569,6 +4845,45 @@ async function gotoStatus() {
 
 document.addEventListener('DOMContentLoaded', initApp);
 
+
+/* ============================================================
+   キーボード表示対策（スマホ: 入力欄にフォーカス時に問題文が見える位置へ）
+============================================================ */
+(function() {
+  // answerInputのfocusで問題文が見えるようにスクロール
+  document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('answerInput');
+    if (!input) return;
+    input.addEventListener('focus', function() {
+      setTimeout(() => {
+        const sb = document.getElementById('screen-battle');
+        if (sb) sb.scrollTop = 0;
+        const qText = document.getElementById('qText');
+        if (qText) qText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 150);
+    });
+  });
+
+  // visualViewport API（Chrome for Android等）
+  if (!window.visualViewport) return;
+  const vvp = window.visualViewport;
+  function onViewportChange() {
+    const screenBattle = document.getElementById('screen-battle');
+    if (!screenBattle || !screenBattle.classList.contains('active')) return;
+    const kbHeight = window.innerHeight - vvp.height;
+    if (kbHeight > 100) {
+      const qCard = document.getElementById('questionCard');
+      if (qCard) setTimeout(() => qCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    } else {
+      setTimeout(() => {
+        if (screenBattle) screenBattle.scrollTop = 0;
+        window.scrollTo(0, 0);
+      }, 100);
+    }
+  }
+  vvp.addEventListener('resize', onViewportChange);
+  vvp.addEventListener('scroll', onViewportChange);
+})();
 </script>
 </body>
 </html>
