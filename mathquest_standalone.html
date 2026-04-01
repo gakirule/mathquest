@@ -367,7 +367,7 @@ html, body {
 
 .hud-name { font-weight: 700; color: var(--gold); }
 .hud-level { color: var(--text-muted); }
-.hud-exp { color: #90e0ff; }
+.hud-mars { color: #ffd700; }
 
 /* ===================================================
    CATEGORY SELECT
@@ -841,22 +841,22 @@ html, body {
   margin-bottom: 1rem;
 }
 
-.exp-bar-wrap { margin-bottom: 0.5rem; }
-.exp-bar {
+.mars-bar-wrap { margin-bottom: 0.5rem; }
+.mars-bar {
   height: 14px;
   background: rgba(255,255,255,0.08);
   border-radius: 999px;
   overflow: hidden;
   margin-top: 0.3rem;
 }
-.exp-fill {
+.mars-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2980b9, #74c0fc);
+  background: linear-gradient(90deg, #b8860b, #ffd700, #ffe44d);
   border-radius: 999px;
   transition: width 0.8s ease;
-  box-shadow: 0 0 8px rgba(41,128,185,0.5);
+  box-shadow: 0 0 8px rgba(255,215,0,0.5);
 }
-.exp-label { font-size: 0.78rem; color: var(--text-muted); }
+.mars-label { font-size: 0.78rem; color: var(--text-muted); }
 
 .stats-row {
   display: flex;
@@ -950,18 +950,18 @@ html, body {
   80% { transform: translateX(6px); }
 }
 
-.exp-popup {
+.mars-popup {
   position: fixed;
   pointer-events: none;
   font-family: var(--font-body);
   font-size: 1.5rem;
   font-weight: 800;
-  color: #90e0ff;
-  text-shadow: 0 0 10px rgba(144,224,255,0.8);
-  animation: expFly 1.2s ease-out forwards;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.9);
+  animation: marsFly 1.2s ease-out forwards;
   z-index: 999;
 }
-@keyframes expFly {
+@keyframes marsFly {
   0%   { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-80px) scale(1.3); }
 }
@@ -1337,25 +1337,25 @@ html, body {
   50%      { opacity: 0.7; }
 }
 
-/* EXP表示 */
-.psp-exp-block {
+/* マース表示 */
+.psp-mars-block {
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.psp-exp-label {
+.psp-mars-label {
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: rgba(120,180,255,0.55);
+  color: rgba(255,215,0,0.7);
   text-transform: uppercase;
 }
 
-.psp-exp-val {
+.psp-mars-val {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #90d8ff;
+  color: #ffd700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
 }
@@ -1461,7 +1461,7 @@ html, body {
   font-weight: 800;
   color: #ff4040;
   text-shadow: 0 0 12px rgba(255,64,64,0.9);
-  animation: expFly 0.9s ease-out forwards;
+  animation: marsFly 0.9s ease-out forwards;
   z-index: 999;
   transform: translateX(-50%);
 }
@@ -1936,7 +1936,7 @@ html, body {
   .psp-name { font-size: 0.75rem; }
   .psp-level, .psp-grade { font-size: 0.65rem; }
   .psp-hp-nums { font-size: 0.7rem; }
-  .psp-exp-label, .psp-exp-val { font-size: 0.65rem; }
+  .psp-mars-label, .psp-mars-val { font-size: 0.65rem; }
 }
 
 /* カテゴリ選択 */
@@ -2203,7 +2203,7 @@ html, body {
           <div class="progress-label">問題 <span id="qNum">1</span> / <span id="qTotal">10</span></div>
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
-        <div class="battle-stats"><span class="stat-badge">⭐ EXP <span id="battleExp">0</span></span></div>
+        
       </div>
 
       <div class="enemy-area" id="enemyArea">
@@ -2284,9 +2284,9 @@ html, body {
               <div class="psp-hp-fill" id="hpFill"></div>
             </div>
           </div>
-          <div class="psp-exp-block">
-            <span class="psp-exp-label">EXP</span>
-            <span class="psp-exp-val" id="bsbExp">0</span>
+          <div class="psp-mars-block">
+            <span class="psp-mars-label">💰</span>
+            <span class="psp-mars-val" id="bsbMars">0Ｍ</span>
           </div>
         </div>
       </div>
@@ -2324,7 +2324,7 @@ html, body {
       <h2 class="result-screen-title" id="resultTitle"></h2>
       <div class="result-stats-grid">
         <div class="result-stat-card"><div class="result-stat-label">スコア</div><div class="result-stat-value" id="resScore"></div></div>
-        <div class="result-stat-card"><div class="result-stat-label">獲得EXP</div><div class="result-stat-value" id="resExp"></div></div>
+        <div class="result-stat-card"><div class="result-stat-label">獲得マース</div><div class="result-stat-value" id="resMars"></div></div>
         <div class="result-stat-card"><div class="result-stat-label">正解数</div><div class="result-stat-value" id="resCorrect"></div></div>
         <div class="result-stat-card"><div class="result-stat-label">連続正解</div><div class="result-stat-value" id="resStreak"></div></div>
       </div>
@@ -2355,6 +2355,88 @@ html, body {
   </div>
 
 <script>
+
+/* ============================================================
+   MarsSystem: マース報酬・難易度倍率システム
+============================================================ */
+const MarsSystem = {
+  // 難易度倍率（gradeLabel → 倍率）
+  GRADE_MULTIPLIER: {
+    '小1':1.0, '小2':1.0, '小3':1.0, '小4':1.0,
+    '小5':1.2, '小6':1.5, '中1':1.9, '中2':2.4, '中3':3.0,
+  },
+
+  // 報酬定義（マース）
+  REWARD: {
+    correct:        10,   // 正解1問
+    streak3:         5,   // 3連続正解ボーナス
+    streak5:        10,   // 5連続正解ボーナス
+    defeat_normal:  20,   // 通常敵撃破
+    defeat_mini:   160,   // ミニボス撃破
+    defeat_boss:    80,   // ボス撃破（カテゴリ・ラスボス）
+  },
+
+  // gradeLabel文字列から倍率を取得
+  getMultiplier(gradeLabel) {
+    if (!gradeLabel) return 1.0;
+    // '小5相当' → '小5'、'中1〜中2' → '中1'
+    const key = gradeLabel.replace(/相当/,'').split('〜')[0].split('〜')[0];
+    return this.GRADE_MULTIPLIER[key] || 1.0;
+  },
+
+  // 問題の難易度倍率を取得（categoryIdのgradeLabelから）
+  getQuestionMultiplier(q) {
+    const cat = typeof CATEGORIES !== 'undefined'
+      ? CATEGORIES.find(c => c.id === q.categoryId)
+      : null;
+    if (!cat) return 1.0;
+    const grade = cat.gradeLabel.replace(/相当/,'').split('〜')[0];
+    return this.GRADE_MULTIPLIER[grade] || 1.0;
+  },
+
+  // 正解報酬を計算（倍率適用）
+  calcCorrectReward(q) {
+    const mult = this.getQuestionMultiplier(q);
+    return Math.round(this.REWARD.correct * mult);
+  },
+
+  // 撃破報酬を計算
+  calcDefeatReward(enemy, q) {
+    let base = this.REWARD.defeat_normal;
+    if (enemy.type === 'boss')  base = this.REWARD.defeat_boss;
+    if (enemy.type === 'mini')  base = this.REWARD.defeat_mini;
+    const mult = this.getQuestionMultiplier(q);
+    return Math.round(base * mult);
+  },
+
+  // 連続正解ボーナス
+  calcStreakBonus(streak) {
+    if (streak >= 5) return this.REWARD.streak5;
+    if (streak >= 3) return this.REWARD.streak3;
+    return 0;
+  },
+
+  // ゲームオーバーペナルティ
+  calcPenalty(currentMars) {
+    const pct = Math.floor(currentMars * 0.10);
+    return Math.min(200, Math.max(20, pct));
+  },
+
+  // マースをユーザーに追加
+  addMars(user, amount) {
+    user.mars = (user.mars || 0) + amount;
+    user.totalMarsEarned = (user.totalMarsEarned || 0) + amount;
+    return user;
+  },
+
+  // ペナルティ適用
+  applyPenalty(user) {
+    const penalty = this.calcPenalty(user.mars || 0);
+    user.mars = Math.max(0, (user.mars || 0) - penalty);
+    return { user, penalty };
+  },
+};
+
 
 /* === EnemySystem === */
 const EnemySystem = {
@@ -4283,7 +4365,14 @@ const Storage = {
 
   // --- ユーザー ---
   async getUser() {
-    return await StorageDriver.get('user');
+    const user = await StorageDriver.get('user');
+    if (user && user.mars === undefined) {
+      // 旧セーブデータマイグレーション: EXP → マース換算（1EXP≒0.5マース）
+      user.mars = Math.floor((user.totalExp || 0) * 0.5);
+      user.totalMarsEarned = user.mars;
+      await this.saveUser(user);
+    }
+    return user;
   },
 
   async saveUser(user) {
@@ -4393,6 +4482,7 @@ const Engine = {
     return {
       username: name, displayName: name,
       totalExp: 0, level: levelDef.level, gradeLabel: levelDef.gradeLabel,
+      mars: 0, totalMarsEarned: 0,  // マース（旧EXPに追加）
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
   },
@@ -4664,7 +4754,8 @@ const Engine = {
     const perfectBonus = correct===total?30:0;
     return { correct, total, score: Math.round(correct/total*100),
              maxStreak, totalExp: baseExp+comboBonus+perfectBonus,
-             baseExp, comboBonus, perfectBonus };
+             baseExp, comboBonus, perfectBonus,
+             marsGained: AppState ? AppState.sessionMars : 0 };
   },
 
   getWeakCategories(progress) {
@@ -4730,7 +4821,7 @@ const UI = {
     el.innerHTML = `
       <span class="hud-name">${this._esc(user.displayName)}</span>
       <span class="hud-level">Lv.${user.level}</span>
-      <span class="hud-exp">EXP ${user.totalExp}</span>
+      <span class="hud-mars">💰 ${user.mars.toLocaleString()}Ｍ</span>
       <span class="hud-grade">${user.gradeLabel}</span>
     `;
   },
@@ -4768,11 +4859,11 @@ const UI = {
     const nameEl  = document.getElementById('bsbName');
     const levelEl = document.getElementById('bsbLevel');
     const gradeEl = document.getElementById('bsbGrade');
-    const expEl   = document.getElementById('bsbExp');
+    const marsEl  = document.getElementById('bsbMars');
     if (nameEl)  nameEl.textContent  = user.displayName;
     if (levelEl) levelEl.textContent = 'Lv.' + user.level;
     if (gradeEl) gradeEl.textContent = user.gradeLabel;
-    if (expEl)   expEl.textContent   = user.totalExp.toLocaleString();
+    if (marsEl)  marsEl.textContent  = (user.mars || 0).toLocaleString() + 'Ｍ';
     this.updateHearts(hp, maxHp);
   },
 
@@ -4965,7 +5056,7 @@ const UI = {
     const clear = result.score >= 50;
     document.getElementById('resultTitle').textContent  = clear ? '🏆 クリア！' : '😔 修行が足りぬ…';
     document.getElementById('resScore').textContent     = result.score + '%';
-    document.getElementById('resExp').textContent       = '+' + result.totalExp;
+    document.getElementById('resMars').textContent      = '+' + (result.marsGained || 0).toLocaleString() + 'Ｍ';
     document.getElementById('resCorrect').textContent   = `${result.correct} / ${result.total}`;
     document.getElementById('resStreak').textContent    = result.maxStreak + '連続';
     const banner = document.getElementById('levelUpBanner');
@@ -4985,15 +5076,21 @@ const UI = {
   async renderStatus(user, progress) {
     const heroEl  = document.getElementById('statusHero');
     const expInfo = getExpToNextLevel(user.totalExp);
+    const mars    = user.mars || 0;
+    const totalEarned = user.totalMarsEarned || 0;
     heroEl.innerHTML = `
       <div class="status-name">${this._esc(user.displayName)}</div>
       <div class="status-grade">${user.gradeLabel}相当 / 「${getLevelDef(user.level).title}」</div>
-      <div class="exp-bar-wrap">
-        <div class="exp-label">Lv.${user.level} → Lv.${user.level+1}まで　${expInfo.current} / ${expInfo.needed} EXP</div>
-        <div class="exp-bar"><div class="exp-fill" style="width:${expInfo.percent}%"></div></div>
+      <div class="mars-bar-wrap">
+        <div class="mars-label">💰 所持マース: ${mars.toLocaleString()}Ｍ　（累計獲得: ${totalEarned.toLocaleString()}Ｍ）</div>
+        <div class="mars-bar"><div class="mars-fill" style="width:${Math.min(100, (mars/Math.max(totalEarned,1))*100).toFixed(1)}%"></div></div>
+      </div>
+      <div class="exp-bar-wrap" style="margin-top:0.5rem;">
+        <div class="mars-label">Lv.${user.level} → Lv.${user.level+1}まで　${expInfo.current} / ${expInfo.needed}</div>
+        <div class="mars-bar"><div class="exp-fill" style="width:${expInfo.percent}%"></div></div>
       </div>
       <div class="stats-row">
-        <div class="stat-chip">累計EXP <span>${user.totalExp}</span></div>
+        <div class="stat-chip">💰 マース <span>${mars.toLocaleString()}</span></div>
         <div class="stat-chip">レベル <span>${user.level}</span></div>
       </div>
     `;
@@ -5045,13 +5142,43 @@ const UI = {
     setTimeout(() => dmg.remove(), 900);
   },
 
-  showExpPopup(amount) {
+  showMarsPopup(marsAmount, streakBonus, streak) {
+    // 正解マース報酬ポップアップ
     const pop = document.createElement('div');
-    pop.className = 'exp-popup';
-    pop.textContent = `+${amount} EXP`;
+    pop.className = 'mars-popup';
+    let txt = `+${marsAmount}Ｍ`;
+    if (streakBonus > 0) {
+      txt += ` ✨+${streakBonus}Ｍ`;
+    }
+    if (streak >= 5) txt = `🔥×${streak} ` + txt;
+    else if (streak >= 3) txt = `⚡×${streak} ` + txt;
+    pop.textContent = txt;
     pop.style.cssText = 'left:50%;top:40%;transform:translateX(-50%)';
     document.body.appendChild(pop);
-    setTimeout(() => pop.remove(), 1300);
+    setTimeout(() => pop.remove(), 1400);
+  },
+
+  showDefeatMarsPopup(amount, enemyType) {
+    // 撃破マース報酬ポップアップ
+    const pop = document.createElement('div');
+    pop.className = 'mars-popup';
+    pop.style.cssText = [
+      'position:fixed',
+      'left:50%',
+      'top:35%',
+      'transform:translateX(-50%)',
+      'font-size:1.8rem',
+      'z-index:9600',
+      'pointer-events:none',
+      'font-weight:800',
+      'color:#ffd700',
+      'text-shadow:0 0 15px rgba(255,215,0,0.9)',
+      'animation:marsFly 1.5s ease-out forwards',
+    ].join(';');
+    const icon = enemyType === 'mini' ? '⭐' : (enemyType === 'boss' ? '🌟' : '💰');
+    pop.textContent = `${icon} +${amount}Ｍ`;
+    document.body.appendChild(pop);
+    setTimeout(() => pop.remove(), 1600);
   },
 
 
@@ -5132,7 +5259,7 @@ const UI = {
   },
 
   // -------------------------------------------------------
-  showGameOverMessage(penalty) {
+  showGameOverMessage(marsPenalty) {
     const old = document.getElementById('gameOverPopup');
     if (old) old.remove();
     const popup = document.createElement('div');
@@ -5145,8 +5272,8 @@ const UI = {
       'color:#fff','font-family:var(--font-title,sans-serif)',
       'text-align:center','padding:2rem',
     ].join(';');
-    const penaltyText = penalty > 0
-      ? '<div style="margin-top:0.75rem;font-size:1rem;color:#ff8888;">EXP -'+penalty+'（ペナルティ）</div>'
+    const penaltyText = marsPenalty > 0
+      ? '<div style="margin-top:0.75rem;font-size:1rem;color:#ff8888;">💸 -'+marsPenalty+'Ｍ（マースを失った）</div>'
       : '';
     popup.innerHTML =
       '<div style="font-size:clamp(2.5rem,10vw,4rem);margin-bottom:0.5rem;">💀</div>' +
@@ -5158,7 +5285,7 @@ const UI = {
     setTimeout(() => {
       popup.remove();
       this.showScreen('title');
-    }, 2000);
+    }, 2500);
   },
 
 
@@ -5281,6 +5408,10 @@ const AppState = {
   waitingGameOver: false,
 
   _autoAdvanceTimer: null,
+
+  // マース報酬（セッション中）
+  sessionMars: 0,        // 今セッションの獲得マース
+  currentStreak: 0,      // 現在の連続正解数
 
   // 現在の敵（HPシステム）
   currentEnemy: null,   // { maxHp, hp, type, grade }
@@ -5566,6 +5697,8 @@ function _resetSession() {
   AppState.currentEnemy       = null;
   AppState.defeatedCount      = 0;
   AppState.defeatPending      = false;
+  AppState.sessionMars        = 0;
+  AppState.currentStreak      = 0;
   if (AppState._autoAdvanceTimer) {
     clearTimeout(AppState._autoAdvanceTimer);
     AppState._autoAdvanceTimer = null;
@@ -5687,6 +5820,8 @@ async function submitAnswer() {
 
   const isCorrect = Engine.checkAnswer(val, q.answer);
   const expGained = isCorrect ? (q.expReward || 15) : 0;
+  // マース報酬変数（スコープを関数レベルに）
+  let marsReward = 0, streakBonus = 0;
 
   AppState.sessionAnswers.push({
     questionId: q.id, userAnswer: val,
@@ -5697,10 +5832,20 @@ async function submitAnswer() {
   await Storage.addRecentQuestion(q.id);
 
   if (isCorrect && AppState.user) {
-    const result = Engine.addExp(AppState.user, expGained);
-    AppState.user = result.user;
+    // マース報酬（正解）
+    marsReward = MarsSystem.calcCorrectReward(q);
+    AppState.currentStreak++;
+    streakBonus = MarsSystem.calcStreakBonus(AppState.currentStreak);
+    const totalMars = marsReward + streakBonus;
+    AppState.sessionMars += totalMars;
+    MarsSystem.addMars(AppState.user, totalMars);
     await Storage.saveUser(AppState.user);
-    if (result.leveledUp && !AppState.levelResult) AppState.levelResult = result;
+
+    // レベルシステムは維持（EXPも継続加算）
+    const expResult = Engine.addExp(AppState.user, expGained);
+    AppState.user = expResult.user;
+    await Storage.saveUser(AppState.user);
+    if (expResult.leveledUp && !AppState.levelResult) AppState.levelResult = expResult;
   }
 
   if (!isCorrect) {
@@ -5709,6 +5854,7 @@ async function submitAnswer() {
     UI.updateHearts(AppState.hp, AppState.maxHp);
     await Storage.addWrongRecord({ questionId: q.id, categoryId: q.categoryId });
 
+    AppState.currentStreak = 0;  // 誤答でストリーク消滅
     AppState.waitingGameOver = AppState.hp <= 0;
     AppState.pendingRevengeQ = q;
 
@@ -5760,13 +5906,22 @@ async function submitAnswer() {
 
     UI.showHeroAttack();
     setTimeout(() => UI.showEnemySlash(), 300);
-    UI.showExpPopup(expGained);
+    // マースポップアップ（正解報酬）- marsReward/streakBonusは上で計算済み
+    UI.showMarsPopup(marsReward, streakBonus, AppState.currentStreak);
     UI.updateEnemyHp(AppState.currentEnemy);
 
     if (AppState.currentEnemy.hp <= 0) {
       // 撃破！
       AppState.defeatedCount++;
-      AppState.defeatPending = true;  // 撃破演出中フラグ
+      AppState.defeatPending = true;
+      // 撃破マース報酬
+      if (AppState.user) {
+        const defeatMars = MarsSystem.calcDefeatReward(AppState.currentEnemy, q);
+        AppState.sessionMars += defeatMars;
+        MarsSystem.addMars(AppState.user, defeatMars);
+        Storage.saveUser(AppState.user);
+        UI.showDefeatMarsPopup(defeatMars, AppState.currentEnemy.type);
+      }
       AppState._autoAdvanceTimer = setTimeout(() => {
         AppState._autoAdvanceTimer = null;
         UI.showDefeatEffect(() => {
@@ -5802,18 +5957,17 @@ async function submitAnswer() {
 // ゲームオーバー
 // -------------------------------------------------------
 async function triggerGameOver() {
-  const gainedExp = AppState.sessionAnswers
-    .filter(a => a.correct).reduce((s, a) => s + (a.expReward || 15), 0);
-  const penalty = Math.floor(gainedExp * 1.5);
-  if (AppState.user && penalty > 0) {
-    AppState.user.totalExp = Math.max(0, AppState.user.totalExp - penalty);
-    const lv = getLevelFromExp(AppState.user.totalExp);
-    AppState.user.level = lv.level; AppState.user.gradeLabel = lv.gradeLabel;
+  // マースペナルティ（所持マースの10%、最低20・最大200）
+  let marsPenalty = 0;
+  if (AppState.user) {
+    const result = MarsSystem.applyPenalty(AppState.user);
+    AppState.user = result.user;
+    marsPenalty = result.penalty;
     await Storage.saveUser(AppState.user);
   }
   UI.showTitleButtons(!!AppState.user);
   UI.hideNav();
-  UI.showGameOverMessage(penalty);
+  UI.showGameOverMessage(marsPenalty);
 }
 
 // -------------------------------------------------------
@@ -5831,6 +5985,7 @@ async function endSession() {
   await Storage.addSession({
     categoryId: AppState.currentCategory || AppState.currentMode,
     score: result.score, expGained: result.totalExp,
+    marsGained: AppState.sessionMars,
     correct: result.correct, total: result.total,
   });
   UI.hideExplanationOverlay();
