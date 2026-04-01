@@ -2155,13 +2155,13 @@ html, body {
       <div class="mode-cards">
         <div class="mode-card mode-card-random" id="modeCardRandom">
           <div class="mode-card-icon">🎲</div>
-          <div class="mode-card-title">通常戦闘</div>
+          <div class="mode-card-title">冒険に出る</div>
           <div class="mode-card-desc">全カテゴリからランダム出題。<br>5問目・10問目にボス！HP5。</div>
           <div class="mode-card-badge">おすすめ</div>
         </div>
         <div class="mode-card mode-card-select" id="modeCardSelect">
           <div class="mode-card-icon">🗺</div>
-          <div class="mode-card-title">選択式戦場</div>
+          <div class="mode-card-title">ダンジョンを選んで戦う</div>
           <div class="mode-card-desc">カテゴリを選んで特訓！<br>最後にボスが待つ。HP3。</div>
         </div>
       </div>
@@ -2387,6 +2387,7 @@ const EnemySystem = {
   _typeOf(q) {
     if (q.isFinal) return 'boss';
     if (q.isMini)  return 'mini';
+    if (q.isBoss)  return 'boss';  // カテゴリボス（ダンジョンモード）
     return 'normal';
   },
 
@@ -5429,7 +5430,10 @@ function bindEvents() {
   });
 
   // ボス紹介
-  document.getElementById('btnFightBoss').addEventListener('click', () => UI.showScreen('battle'));
+  document.getElementById('btnFightBoss').addEventListener('click', () => {
+    UI.showScreen('battle');
+    showCurrentQuestion();
+  });
 
   // セッション結果
   document.getElementById('btnPlayAgain').addEventListener('click', () => {
@@ -5576,9 +5580,23 @@ async function startRandomSession() {
 
 async function startCategorySession(categoryId) {
   AppState.currentMode = 'select'; AppState.currentCategory = categoryId;
+  // 前セッションの状態を完全にリセット
+  UI.hideExplanationOverlay();
+  if (AppState._autoAdvanceTimer) {
+    clearTimeout(AppState._autoAdvanceTimer);
+    AppState._autoAdvanceTimer = null;
+  }
   _resetSession(); initHp(true);
   const recentIds = await Storage.getRecentQuestions();
   const questions = await Engine.buildSession(categoryId, AppState.progress, recentIds, AppState.user.level);
+
+  // 問題が取得できなかった場合はモード選択に戻る
+  if (!questions || questions.length === 0) {
+    alert('このカテゴリはまだ解禁されていません。');
+    await gotoMode();
+    return;
+  }
+
   const boss = getBossQuestion(categoryId);
   if (boss) {
     questions.push({ ...getVariant(boss), isBoss: true, categoryId });
