@@ -3164,10 +3164,11 @@ const QUESTION_POOL = [
       '繰り上がりが4回連鎖します。各位でメモを取りながら計算しましょう。',
       '概算: 約10000＋約1000＝11000。答えの11110はこの規模感と合っています。'),
     variants:[
-      {text:'8765 ＋ 2345 ＝ ?', answer:'11110'},
-      {text:'7654 ＋ 3456 ＝ ?', answer:'11110'},
-      {text:'6543 ＋ 4567 ＝ ?', answer:'11110'},
-      {text:'5432 ＋ 5678 ＝ ?', answer:'11110'},
+      {text:'3456 ＋ 7890 ＝ ?', answer:'11346'},
+      {text:'4567 ＋ 5834 ＝ ?', answer:'10401'},
+      {text:'2873 ＋ 6549 ＝ ?', answer:'9422'},
+      {text:'5184 ＋ 7263 ＝ ?', answer:'12447'},
+      {text:'6428 ＋ 3957 ＝ ?', answer:'10385'},
     ]},
 
   // ===== ひき算 =====
@@ -3600,10 +3601,11 @@ const QUESTION_POOL = [
       '括弧を無視してしまうと計算順序が狂います。括弧の中を必ず先に計算しましょう。',
       '5/6×6/5のように分子と分母が逆の分数をかけると必ず1になります（逆数の積）。これを利用した問題です。'),
     variants:[
-      {text:'( 1/3 ＋ 1/6 ) × 6/3 ＝ ?', answer:'1'},
-      {text:'( 1/4 ＋ 1/4 ) × 4/2 ＝ ?', answer:'1'},
-      {text:'( 2/3 ー 1/6 ) × 6/3 ＝ ?', answer:'1'},
-      {text:'( 3/4 ー 1/4 ) × 4/2 ＝ ?', answer:'1'},
+      {text:'( 1/2 ＋ 1/6 ) × 3/2 ＝ ?', answer:'1'},
+      {text:'2/3 × ( 3/4 ＋ 3/4 ) ＝ ?', answer:'1'},
+      {text:'( 5/6 ー 1/3 ) ÷ 1/2 ＝ ?', answer:'1'},
+      {text:'3/4 ÷ ( 1/2 ＋ 1/4 ) ＝ ?', answer:'1'},
+      {text:'( 1/3 × 6 ) ÷ 2 ＝ ?', answer:'1'},
     ]},
 
   // ===== 割合・百分率 =====
@@ -3681,10 +3683,11 @@ const QUESTION_POOL = [
       '「1440−20%＝定価」は間違いです。1440の80%ではなく、定価の120%が1440です。',
       '定価をxとすると、x×(1＋0.2)＝1440。つまりx＝1440÷1.2＝1200。方程式として解くと分かりやすいです。'),
     variants:[
-      {text:'定価の25%増しで販売して1500円でした。定価はいくらですか？', answer:'1200'},
-      {text:'定価の20%増しで販売して1800円でした。定価はいくらですか？', answer:'1500'},
+      {text:'定価の25%増しで販売して1875円でした。定価はいくらですか？', answer:'1500'},
+      {text:'定価の20%増しで販売して1560円でした。定価はいくらですか？', answer:'1300'},
       {text:'定価の10%増しで販売して2200円でした。定価はいくらですか？', answer:'2000'},
-      {text:'定価の50%増しで販売して3000円でした。定価はいくらですか？', answer:'2000'},
+      {text:'定価の50%増しで販売して3750円でした。定価はいくらですか？', answer:'2500'},
+      {text:'定価の25%増しで販売して3750円でした。定価はいくらですか？', answer:'3000'},
     ]},
 
   // ===== 図形・面積 =====
@@ -4143,10 +4146,15 @@ function getQuestionsByCategory(categoryId) {
 function getBossQuestion(categoryId) {
   return QUESTION_POOL.find(q => q.categoryId === categoryId && q.isBoss) || null;
 }
-function getVariant(question) {
+function getVariant(question, excludeText) {
   if (!question.variants || !question.variants.length) return question;
-  const all  = [question, ...question.variants];
-  const base = all[Math.floor(Math.random() * all.length)];
+  const all = [question, ...question.variants];
+  // 直前と同じ問題文を除外（除外後が空なら全部使う）
+  const candidates = excludeText
+    ? all.filter(v => v.text !== excludeText)
+    : all;
+  const pool = candidates.length > 0 ? candidates : all;
+  const base = pool[Math.floor(Math.random() * pool.length)];
   return { ...question, text: base.text, answer: base.answer };
 }
 function getRetryVariant(question) {
@@ -5775,7 +5783,7 @@ async function submitAnswer() {
         AppState._autoAdvanceTimer = null;
         if (q.isBoss) {
           // ボス戦継続：variantをランダムに選び直して再表示
-          const freshVariant = getVariant(q);
+          const freshVariant = getVariant(q, q.text); // 直前と同じ問題文を避ける
           AppState.sessionQuestions[AppState.sessionIndex] = {
             ...q,
             text:   freshVariant.text,
