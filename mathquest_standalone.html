@@ -2419,259 +2419,635 @@ const EnemySystem = {
 };
 
 /* ============================================================
-   動的解説生成（variantの数値に対応した解説を自動生成）
-   templateTypeに応じて問題文をパースし計算過程を生成する
+   動的ヒント・解説生成（variantの数値に対応）
+   generateHint(q)       → 戦闘画面のヒント文字列
+   generateExplanation(q) → 解説オーバーレイ用オブジェクト
+============================================================ */
+
+/* ---------- 共通ヘルパー ---------- */
+function _nums(text) {
+  return (text.match(/-?[\d.]+/g) || []).map(Number);
+}
+function _gcd(a, b) { return b === 0 ? a : _gcd(b, a % b); }
+function _simplFrac(n, d) {
+  const g = _gcd(Math.abs(n), Math.abs(d));
+  const sn = n/g, sd = d/g;
+  return sd === 1 ? String(sn) : `${sn}/${sd}`;
+}
+
+/* ============================================================
+   generateHint: 問題文の数値を使ったヒントを生成
+============================================================ */
+function generateHint(q) {
+  const text = q.text || '';
+  const ans  = q.answer || '';
+  const type = q.templateType || '';
+  const n    = _nums(text);
+  try {
+    if (type === 'add2digit' || type === 'add3digit' || type === 'add4digit') {
+      const [a, b] = n;
+      return `一の位 ${a%10}＋${b%10} から計算して、繰り上がりを忘れずに！`;
+    }
+    if (type === 'sub2digit') {
+      const [a, b] = n;
+      return `一の位 ${a%10} から ${b%10} が引けない → 十の位から10借りる（繰り下がり）`;
+    }
+    if (type === 'sub_complement') {
+      const [a, b] = n;
+      return `${a}＝${a-1}＋1 と考えて、${a-1} から引いてから 1 を足そう`;
+    }
+    if (type === 'sub_round') {
+      const [a, b] = n;
+      const round = Math.ceil(b/100)*100;
+      return `${b} に近いきりのよい数 ${round} で引いてから、差の ${round-b} を足して調整しよう`;
+    }
+    if (type === 'mul_9x9') {
+      const [a, b] = n;
+      return `${a}の段の九九: ${a}×${b}＝? … ${a}×${b-1}＝${a*(b-1)} に ${a} を足すと？`;
+    }
+    if (type === 'mul_x5') {
+      const [a] = n;
+      return `×5 は「×10 して ÷2」→ ${a}×10＝${a*10}、÷2＝${a*5}`;
+    }
+    if (type === 'mul_2digit') {
+      const [a, b] = n;
+      const b1 = Math.floor(b/10)*10, b2 = b%10;
+      return `${b} を「${b1}＋${b2}」に分けて計算しよう。${a}×${b1}＝${a*b1}、${a}×${b2}＝${a*b2}`;
+    }
+    if (type === 'mul_square') {
+      const [a] = n;
+      const near = Math.round(a/10)*10;
+      const d = a - near;
+      return d >= 0
+        ? `(${near}＋${d})² ＝ ${near}²＋2×${near}×${d}＋${d}² で展開しよう`
+        : `(${near}${d})² ＝ ${near}²＋2×${near}×(${d})＋(${d})² で展開しよう`;
+    }
+    if (type === 'mul_near100') {
+      const [a, b] = [n[0], n[0]]; // 99×99 etc
+      const near = Math.round(a/100)*100;
+      const d = a - near;
+      return `${a} ＝ ${near}${d >= 0 ? '＋' : ''}${d} とみて (a±b)² の展開公式を使おう`;
+    }
+    if (type === 'mul_diff') {
+      const [a, b] = n;
+      const mid = Math.round((a+b)/2);
+      const d   = mid - Math.min(a,b);
+      return `${a}×${b} ＝ (${mid}－${d})(${mid}＋${d}) ＝ ${mid}²－${d}² を使おう`;
+    }
+    if (type === 'div_9x9') {
+      const [a, b] = n;
+      return `「${b}×□＝${a}」となる□を九九で探そう`;
+    }
+    if (type === 'div_2digit' || type === 'div_3digit') {
+      const [a, b] = n;
+      const q10 = Math.floor(a / b / 10) * 10;
+      return `${b}×${q10}＝${b*q10} を目安に、残り ${a - b*q10} を ${b} でさらに割ろう`;
+    }
+    if (type === 'dec_add') {
+      return `小数点をそろえて整数のように計算 → 最後に小数点の位置を戻そう`;
+    }
+    if (type === 'dec_mul') {
+      return `小数を整数に直してかけ算 → 小数桁数の合計だけ小数点を戻そう`;
+    }
+    if (type === 'dec_div') {
+      const [a, b] = n;
+      const x = String(b).replace('.','').length - (String(b).indexOf('.')+1||String(b).length);
+      const m10 = Math.pow(10, x);
+      return `割る数 ${b} を整数にするため両方に ${m10} をかけよう → ${a*m10}÷${b*m10}`;
+    }
+    if (type === 'frac_add' || type === 'frac_sub') {
+      const denoms = (text.match(/\/(\d+)/g) || []).map(s => parseInt(s.slice(1)));
+      const lcm = (a,b) => a*b/_gcd(a,b);
+      const l = denoms.reduce(lcm, 1);
+      return `分母 ${denoms.join('と')} の最小公倍数 ${l} で通分してから計算しよう`;
+    }
+    if (type === 'frac_mul') {
+      return `分子同士をかけて、分母同士をかけよう。最後に約分！`;
+    }
+    if (type === 'frac_div') {
+      return `割る数の逆数をかけよう（÷a/b ＝ ×b/a）`;
+    }
+    if (type === 'frac_complex') {
+      return `括弧の中を先に計算してから、かけ算をしよう`;
+    }
+    if (type === 'percent_of') {
+      const [base, pct] = n;
+      return `${pct}% ＝ ${pct/100}（小数）→ ${base}×${pct/100} を計算しよう`;
+    }
+    if (type === 'percent_discount') {
+      const [base, disc] = n;
+      return `${disc}%引き ＝ 残り ${100-disc}% → ${base}×${(100-disc)/100} を計算しよう`;
+    }
+    if (type === 'percent_ratio') {
+      const [a, b] = n;
+      return `（比べる量÷もとにする量）×100 → ${a}÷${b}×100 を計算しよう`;
+    }
+    if (type === 'percent_markup') {
+      const [base, pct] = n;
+      return `定価 ＝ 原価×(1＋${pct/100}) ＝ ${base}×${1+pct/100} を計算しよう`;
+    }
+    if (type === 'percent_reverse') {
+      const ns = _nums(text);
+      const price = Math.max(...ns);
+      const pct   = ns.find(x => x < 100 && x > 0) || 20;
+      return `定価×${1+pct/100}＝${price} → 定価＝${price}÷${1+pct/100} を計算しよう`;
+    }
+    if (type === 'area_rect') {
+      const [h, w] = n;
+      return `面積＝縦×横 → ${h}×${w} を計算しよう`;
+    }
+    if (type === 'area_triangle') {
+      const [base, height] = n;
+      return `面積＝底辺×高さ÷2 → ${base}×${height}÷2 を計算しよう`;
+    }
+    if (type === 'area_circle') {
+      const [r] = n;
+      return `面積＝π×r² → 3.14×${r}² ＝ 3.14×${r*r} を計算しよう`;
+    }
+    if (type === 'area_trapezoid') {
+      const [t, b2, h] = n;
+      return `面積＝(上底＋下底)×高さ÷2 → (${t}＋${b2})×${h}÷2 を計算しよう`;
+    }
+    if (type === 'circumference') {
+      const r = text.includes('直径') ? n[0]/2 : n[0];
+      return `円周＝2×π×半径 → 2×3.14×${r} を計算しよう`;
+    }
+    if (type === 'pythagorean') {
+      const [s] = n;
+      return `対角線² ＝ ${s}²＋${s}² ＝ ${s*s*2} → √${s*s*2}＝${s}√2 → ${s}×1.41 を計算しよう`;
+    }
+    if (type === 'ratio_simplify') {
+      const [a, b] = n;
+      const g = _gcd(a, b);
+      return `${a}と${b}の最大公約数 ${g} で両方を割ろう → ${a/g}:${b/g}`;
+    }
+    if (type === 'proportion_direct') {
+      const ns = _nums(text);
+      const x1 = ns[0], y1 = ns[1], x2 = ns[2];
+      const k = y1/x1;
+      return `比例定数 k＝y÷x＝${y1}÷${x1}＝${k}。y＝${k}x に x＝${x2} を代入しよう`;
+    }
+    if (type === 'proportion_inverse') {
+      const ns = _nums(text);
+      const x1 = ns[0], y1 = ns[1], x2 = ns[2];
+      const k = x1*y1;
+      return `比例定数 k＝x×y＝${x1}×${y1}＝${k}。y＝${k}÷x に x＝${x2} を代入しよう`;
+    }
+    if (type === 'eq_linear1') {
+      const [, c] = n; // x + c = ans
+      return `${c} を右辺に移項しよう（符号が変わる）→ x＝${ans}`;
+    }
+    if (type === 'eq_coeff') {
+      const [coeff, , rhs] = n;
+      return `両辺を ${coeff} で割ろう → x＝${rhs}÷${coeff}`;
+    }
+    if (type === 'eq_linear2' || type === 'eq_both_sides') {
+      return `文字を左辺・数を右辺にまとめて移項し、係数で割ろう`;
+    }
+    if (type === 'eq_fraction') {
+      const denoms = (text.match(/\/(\d+)/g)||[]).map(s=>parseInt(s.slice(1)));
+      const lcm = (a,b)=>a*b/_gcd(a,b);
+      const l = denoms.filter(d=>d>0).reduce(lcm,1);
+      return `両辺に ${l}（分母の最小公倍数）をかけて分数をなくそう`;
+    }
+    if (type === 'eq_decimal') {
+      return `両辺に 10（または100）をかけて小数をなくそう`;
+    }
+    if (type === 'eq_expand') {
+      return `分配法則で括弧を展開してから移項しよう`;
+    }
+    if (type === 'neg_add') {
+      const [a, b] = n;
+      return `同符号の和 → 絶対値を足して共通の符号をつけよう（${Math.abs(a)}＋${Math.abs(b)}＝${Math.abs(a)+Math.abs(b)}）`;
+    }
+    if (type === 'neg_sub') {
+      return `マイナスを引く ＝ プラスを足す（－(−n)＝＋n）`;
+    }
+    if (type === 'neg_mul') {
+      const [a, b] = n;
+      return `符号: (−)×(−)＝(＋)。絶対値 ${Math.abs(a)}×${Math.abs(b)}＝${Math.abs(a*b)}`;
+    }
+    if (type === 'neg_power') {
+      return `奇数乗 → マイナス。偶数乗 → プラス。順番にかけていこう`;
+    }
+    if (type === 'neg_calc') {
+      return `左から順に計算。÷(−) は符号が逆になる`;
+    }
+    if (type === 'pow_int') {
+      const [base, exp] = n;
+      return `${base}を${exp}回かける。${base}¹＝${base}、${base}²＝${base*base}… と順番に`;
+    }
+    if (type === 'sqrt_int') {
+      const [v] = n;
+      return `□²＝${v} となる□を探そう。√${v}＝?`;
+    }
+    if (type === 'sqrt_simplify') {
+      const [v] = n;
+      // 最大の平方因数を探す
+      let maxSq = 1;
+      for (let i = Math.floor(Math.sqrt(v)); i >= 2; i--) {
+        if (v % (i*i) === 0) { maxSq = i*i; break; }
+      }
+      return `${v}＝${maxSq}×${v/maxSq}。√${maxSq}＝${Math.sqrt(maxSq)}なので根号の外に出せる`;
+    }
+    if (type === 'sqrt_add') {
+      return `それぞれの根号を簡単にしてから同類項（√の中が同じ）として足そう`;
+    }
+    if (type === 'sqrt_expand') {
+      return `(a＋b)²＝a²＋2ab＋b² の公式を使おう。中間項 2ab を忘れずに！`;
+    }
+  } catch(e) {}
+  return q.hint || 'ヒントを確認しよう';
+}
+
+/* ============================================================
+   generateExplanation: 数値対応の詳しい解説を生成
 ============================================================ */
 function generateExplanation(q) {
   const text = q.text || '';
   const ans  = q.answer || '';
   const type = q.templateType || '';
+  const n    = _nums(text);
 
-  // 数値抽出ヘルパー
-  const nums = () => (text.match(/-?[\d.]+/g) || []).map(Number);
+  // セクション生成ヘルパー
+  const sec = (t, c) => ({ title: t, content: c });
 
   try {
-    // ===== たし算 =====
+    /* ===== たし算 ===== */
     if (type === 'add2digit' || type === 'add3digit' || type === 'add4digit') {
-      const [a, b] = nums();
-      return {
-        title: `${a} ＋ ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}と${b}を足した合計を求めます。` },
-          { title: '✏️ 計算過程', content: `${a} ＋ ${b} ＝ ${a+b}` },
-          { title: '⚠️ 間違えやすいポイント', content: '繰り上がりを忘れずに計算しましょう。' },
-        ]
-      };
+      const [a, b] = n;
+      const digits = [];
+      let carry = 0, tmpA = a, tmpB = b;
+      const pow10 = [];
+      let maxD = Math.max(String(a).length, String(b).length);
+      for (let i = 0; i < maxD+1; i++) {
+        const da = tmpA % 10, db = tmpB % 10;
+        const s = da + db + carry;
+        digits.unshift({ da, db, carry, s, digit: s%10, newCarry: Math.floor(s/10) });
+        carry = Math.floor(s/10);
+        tmpA = Math.floor(tmpA/10); tmpB = Math.floor(tmpB/10);
+      }
+      const calcLines = digits.filter((d,i) => i > 0 || d.da+d.db+d.carry > 0).map(d =>
+        `${d.da}＋${d.db}${d.carry?`＋${d.carry}(繰り上がり)`:''}＝${d.da+d.db+d.carry} → ${d.digit}を書き${d.newCarry?'、'+d.newCarry+'繰り上げ':''}`
+      ).join('\n');
+      return { title: `${a} ＋ ${b} ＝ ${a+b}`, sections: [
+        sec('🎯 何を求めるか', `${a}と${b}を足した合計を求めます。`),
+        sec('📝 解き方の流れ', '筆算では一の位から計算し、繰り上がりを次の位に持ち越します。'),
+        sec('✏️ 計算過程', `${a}\n＋ ${b}\n──────\n= ${a+b}\n\n(一の位から順に計算)`),
+        sec('⚠️ 間違えやすいポイント', '繰り上がりの「1」を次の位に足し忘れると答えが少なくなります。'),
+        sec('💡 なぜそうなるか', `${a}＋${b}は「${a}の上に${b}を積み上げた数」。位ごとに分けて計算しても同じ答えになります。`),
+      ]};
     }
-    // ===== ひき算 =====
+
+    /* ===== ひき算 ===== */
     if (type === 'sub2digit' || type === 'sub_complement' || type === 'sub_round') {
-      const [a, b] = nums();
-      return {
-        title: `${a} ー ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}から${b}を引いた差を求めます。` },
-          { title: '✏️ 計算過程', content: `${a} ー ${b} ＝ ${a-b}` },
-          { title: '⚠️ 間違えやすいポイント', content: '繰り下がりに注意して計算しましょう。' },
-        ]
-      };
+      const [a, b] = n;
+      let proc = '';
+      if (type === 'sub_complement') {
+        proc = `${a}＝${a-1}＋1 と考える\n${a-1}－${b}＝${a-1-b}\n${a-1-b}＋1＝${a-b}`;
+      } else {
+        proc = `  ${a}\n－${b}\n──────\n＝ ${a-b}`;
+      }
+      return { title: `${a} ー ${b} ＝ ${a-b}`, sections: [
+        sec('🎯 何を求めるか', `${a}から${b}を引いた差を求めます。`),
+        sec('📝 解き方の流れ', type === 'sub_complement'
+          ? `${a}＝${a-1}＋1 と分けて、${a-1}から引いてから1を足す方法が便利です。`
+          : '一の位から引けないときは十の位から10を借ります（繰り下がり）。'),
+        sec('✏️ 計算過程', proc),
+        sec('⚠️ 間違えやすいポイント', type === 'sub_complement'
+          ? `最後の「＋1」を忘れると答えが1少なくなります。`
+          : '繰り下がり後、十の位を1減らすのを忘れないようにしましょう。'),
+        sec('💡 なぜそうなるか', `${a}－${b}の答えは${a-b}。確認: ${a-b}＋${b}＝${a} ✓`),
+      ]};
     }
-    // ===== かけ算：九九 =====
+
+    /* ===== かけ算：九九 ===== */
     if (type === 'mul_9x9') {
-      const [a, b] = nums();
-      return {
-        title: `${a} × ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}を${b}回足した合計を求めます。` },
-          { title: '✏️ 計算過程', content: `${a} × ${b} ＝ ${a*b}` },
-          { title: '💡 なぜそうなるか', content: `${a}の段の九九: ${Array.from({length:9},(_,i)=>`${a}×${i+1}=${a*(i+1)}`).join('、')}` },
-        ]
-      };
+      const [a, b] = n;
+      const table = Array.from({length:9},(_,i)=>`${a}×${i+1}＝${a*(i+1)}`).join('　');
+      return { title: `${a} × ${b} ＝ ${a*b}`, sections: [
+        sec('🎯 何を求めるか', `${a}を${b}回足した合計（${a}×${b}）を求めます。`),
+        sec('📝 ${a}の段の九九', table),
+        sec('✏️ 計算結果', `${a} × ${b} ＝ ${a*b}`),
+        sec('⚠️ 間違えやすいポイント', `${a}×${b}と${b}×${a}はどちらも${a*b}（交換法則）。混同しても答えは同じです！`),
+        sec('💡 なぜそうなるか', `${a}×${b}は「${a}が${b}個ある」ということ。${Array.from({length:b},()=>a).join('＋')}＝${a*b}で確認できます。`),
+      ]};
     }
-    // ===== かけ算：×5 =====
-    if (type === 'mul_x5') {
-      const [a] = nums();
-      return {
-        title: `${a} × 5 の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}を5倍した数を求めます。` },
-          { title: '✏️ 計算過程', content: `${a} × 5 ＝ ${a}×10÷2 ＝ ${a*10}÷2 ＝ ${a*5}` },
-          { title: '💡 なぜそうなるか', content: '×5は「×10して÷2」と考えると速く計算できます。' },
-        ]
-      };
-    }
-    // ===== かけ算：2桁×2桁 =====
+
+    /* ===== かけ算：2桁×2桁 ===== */
     if (type === 'mul_2digit') {
-      const [a, b] = nums();
+      const [a, b] = n;
       const b1 = Math.floor(b/10)*10, b2 = b%10;
-      return {
-        title: `${a} × ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}と${b}を掛けた積を求めます。` },
-          { title: '✏️ 計算過程', content: `${a}×${b} ＝ ${a}×(${b1}+${b2}) ＝ ${a*b1}+${a*b2} ＝ ${a*b}` },
-          { title: '⚠️ 間違えやすいポイント', content: '筆算の2行目を1桁ずらして書くことを忘れずに。' },
-        ]
-      };
+      return { title: `${a} × ${b} ＝ ${a*b}`, sections: [
+        sec('🎯 何を求めるか', `${a}と${b}を掛けた積を求めます。`),
+        sec('📝 解き方の流れ', `${b}を「${b1}＋${b2}」に分けて、それぞれ${a}にかけてから足す（分配法則）。`),
+        sec('✏️ 計算過程', `${a}×${b}\n＝ ${a}×(${b1}＋${b2})\n＝ ${a*b1}＋${a*b2}\n＝ ${a*b}`),
+        sec('⚠️ 間違えやすいポイント', `筆算の2行目（${a}×${Math.floor(b/10)}の部分）は1桁左にずらして書きます。これを忘れると答えが変わります。`),
+        sec('💡 なぜそうなるか', `分配法則: a×(b+c)＝a×b＋a×c。${b}個を${b1}個と${b2}個のグループに分けて考えます。`),
+      ]};
     }
-    // ===== かけ算：二乗（near100/square） =====
+
+    /* ===== かけ算：二乗・near100 ===== */
     if (type === 'mul_near100' || type === 'mul_square') {
-      const [a] = nums();
-      return {
-        title: `${a} × ${a} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}を2乗した値を求めます。` },
-          { title: '✏️ 計算過程', content: `${a}² ＝ ${a*a}` },
-          { title: '💡 なぜそうなるか', content: `${a}を丸い数±差として展開すると計算しやすくなります。` },
-        ]
-      };
+      const [a] = n;
+      const near = type === 'mul_near100' ? Math.round(a/100)*100 : Math.round(a/10)*10;
+      const d = a - near;
+      const formula = d >= 0
+        ? `(${near}＋${d})²＝${near}²＋2×${near}×${d}＋${d}²`
+        : `(${near}${d})²＝${near}²＋2×${near}×(${d})＋(${d})²`;
+      const calc = d >= 0
+        ? `${near*near}＋${2*near*d}＋${d*d}＝${a*a}`
+        : `${near*near}${2*near*d}＋${d*d}＝${a*a}`;
+      return { title: `${a} × ${a} ＝ ${a*a}`, sections: [
+        sec('🎯 何を求めるか', `${a}を2乗した値を求めます。`),
+        sec('📝 解き方の流れ', `${a}＝${near}${d>=0?'＋'+d:''}${d<0?d:''}と考えて(a＋b)²の展開公式を使います。`),
+        sec('✏️ 計算過程', `${a}²＝${formula}\n＝ ${calc}`),
+        sec('⚠️ 間違えやすいポイント', `(a＋b)²≠a²＋b²です！中間項 2ab（＝${2*near*Math.abs(d)}）を必ず含めましょう。`),
+        sec('💡 なぜそうなるか', `(a＋b)²を展開すると a²＋ab＋ba＋b²＝a²＋2ab＋b²。${near}と${Math.abs(d)}の組み合わせで計算が楽になります。`),
+      ]};
     }
-    // ===== かけ算：和と差の積 =====
+
+    /* ===== かけ算：和と差の積 ===== */
     if (type === 'mul_diff') {
-      const [a, b] = nums();
+      const [a, b] = n;
       const mid = Math.round((a+b)/2);
-      const d = mid - a;
-      return {
-        title: `${a} × ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}と${b}の積を求めます。` },
-          { title: '✏️ 計算過程', content: `${a}×${b} ＝ (${mid}-${d})(${mid}+${d}) ＝ ${mid}²-${d}² ＝ ${mid*mid}-${d*d} ＝ ${a*b}` },
-          { title: '⚠️ 間違えやすいポイント', content: '(a-b)(a+b)=a²-b²の公式を使います。' },
-        ]
-      };
+      const d   = mid - Math.min(a, b);
+      return { title: `${a} × ${b} ＝ ${a*b}`, sections: [
+        sec('🎯 何を求めるか', `${a}と${b}の積を求めます。`),
+        sec('📝 解き方の流れ', `${a}＝${mid}－${d}、${b}＝${mid}＋${d}と見て(a－b)(a＋b)＝a²－b²の公式を使います。`),
+        sec('✏️ 計算過程', `${a}×${b}\n＝(${mid}－${d})(${mid}＋${d})\n＝${mid}²－${d}²\n＝${mid*mid}－${d*d}\n＝${a*b}`),
+        sec('⚠️ 間違えやすいポイント', `(a－b)(a＋b)＝a²－b²（差の積）。a²＋b²にしてはいけません！`),
+        sec('💡 なぜそうなるか', `${mid}に近い2数の積はこの方法が速い。確認: ${a}×${b}＝${a*b} ✓`),
+      ]};
     }
-    // ===== わり算：九九 =====
+
+    /* ===== わり算 ===== */
     if (type === 'div_9x9') {
-      const [a, b] = nums();
-      return {
-        title: `${a} ÷ ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}を${b}等分した商を求めます。` },
-          { title: '✏️ 計算過程', content: `${b}×${a/b} ＝ ${a} → ${a}÷${b} ＝ ${a/b}` },
-          { title: '💡 なぜそうなるか', content: `「${b}の段で${a}になる数」を九九から探します。` },
-        ]
-      };
+      const [a, b] = n;
+      return { title: `${a} ÷ ${b} ＝ ${a/b}`, sections: [
+        sec('🎯 何を求めるか', `${a}を${b}等分した商を求めます。`),
+        sec('📝 解き方の流れ', `「${b}×□＝${a}」となる□を九九から探します。かけ算の逆操作がわり算です。`),
+        sec('✏️ 計算過程', `${b}の段: ${Array.from({length:9},(_,i)=>`${b}×${i+1}＝${b*(i+1)}`).join('、')}\n${b}×${a/b}＝${a} → ${a}÷${b}＝${a/b}`),
+        sec('⚠️ 間違えやすいポイント', `「${b}÷${a}」と逆にしないように。割る数（${b}）が小さい方です。`),
+        sec('💡 なぜそうなるか', `A÷B＝C ならば B×C＝A。${a}÷${b}＝${a/b} ↔ ${b}×${a/b}＝${a}で確認できます。`),
+      ]};
     }
-    // ===== わり算：2桁・3桁 =====
     if (type === 'div_2digit' || type === 'div_3digit') {
-      const [a, b] = nums();
+      const [a, b] = n;
       const q2 = Math.floor(a/b);
-      return {
-        title: `${a} ÷ ${b} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}を${b}等分した商を求めます。` },
-          { title: '✏️ 計算過程', content: `${b}×${q2} ＝ ${b*q2}\n${a} ー ${b*q2} ＝ ${a-b*q2}\n${a-b*q2} ÷ ${b} ＝ ${(a-b*q2)/b}\n商: ${q2}+${(a-b*q2)/b} ＝ ${q2+(a-b*q2)/b}` },
-          { title: '⚠️ 間違えやすいポイント', content: `確認: ${b}×${q2+(a-b*q2)/b}＝${a} ✓` },
-        ]
-      };
+      const q10 = Math.floor(q2/10)*10;
+      const rem = a - b*q10;
+      const q2nd = q2 - q10;
+      return { title: `${a} ÷ ${b} ＝ ${q2}`, sections: [
+        sec('🎯 何を求めるか', `${a}を${b}で割った商を求めます。`),
+        sec('📝 解き方の流れ', `${b}×${q10}＝${b*q10}を目安に、残りをさらに${b}で割ります。`),
+        sec('✏️ 計算過程', `${b}×${q10}＝${b*q10}\n${a}－${b*q10}＝${rem}\n${rem}÷${b}＝${q2nd}\n商: ${q10}＋${q2nd}＝${q2}`),
+        sec('⚠️ 間違えやすいポイント', `商の見当をつけるため、${b}×10, 20...と順に試してみましょう。`),
+        sec('💡 なぜそうなるか', `確認: ${b}×${q2}＝${b*q2} ✓`),
+      ]};
     }
-    // ===== 小数のたし算 =====
-    if (type === 'dec_add') {
-      const [a, b] = nums();
-      return {
-        title: `${text.replace(' ＝ ?','')} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${a}と${b}を足した合計を求めます。` },
-          { title: '✏️ 計算過程', content: `${a} ＋ ${b} ＝ ${ans}` },
-          { title: '⚠️ 間違えやすいポイント', content: '小数点の位置をそろえて計算しましょう。' },
-        ]
-      };
+
+    /* ===== 分数 ===== */
+    if (type === 'frac_add' || type === 'frac_sub') {
+      const fracs = [...text.matchAll(/(\d+)\/(\d+)/g)].map(m=>[+m[1],+m[2]]);
+      if (fracs.length >= 2) {
+        const [[n1,d1],[n2,d2]] = fracs;
+        const lcm = (a,b)=>a*b/_gcd(a,b);
+        const l = lcm(d1,d2);
+        const en1 = n1*(l/d1), en2 = n2*(l/d2);
+        const isAdd = text.includes('＋');
+        const rn = isAdd ? en1+en2 : en1-en2;
+        const g = _gcd(Math.abs(rn),l);
+        return { title: `分数の${isAdd?'たし':'ひき'}算`, sections: [
+          sec('🎯 何を求めるか', `${n1}/${d1}と${n2}/${d2}を${isAdd?'足した':'引いた'}値を求めます。`),
+          sec('📝 解き方の流れ', `分母が違う分数は通分（分母をそろえる）してから計算します。${d1}と${d2}の最小公倍数は${l}です。`),
+          sec('✏️ 計算過程', `${n1}/${d1}＝${en1}/${l}\n${n2}/${d2}＝${en2}/${l}\n${en1}/${l}${isAdd?'＋':'－'}${en2}/${l}＝${rn}/${l}${g>1?`＝${rn/g}/${l/g}`:''}${l/g===1?` (＝${rn/g})`  :''}`),
+          sec('⚠️ 間違えやすいポイント', `分母が異なるまま計算すると正しい答えになりません。必ず通分してから！`),
+          sec('💡 なぜそうなるか', `分数のたし引きは「同じ単位に変換してから計算する」イメージです。`),
+        ]};
+      }
     }
-    // ===== 小数のかけ算 =====
-    if (type === 'dec_mul') {
-      return {
-        title: `${text.replace(' ＝ ?','')} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: `問題の積を求めます。` },
-          { title: '✏️ 計算過程', content: `${text.replace(' ＝ ?','')} ＝ ${ans}` },
-          { title: '💡 なぜそうなるか', content: '小数を整数に直して計算し、最後に小数点をずらします。' },
-        ]
-      };
+    if (type === 'frac_mul') {
+      const fracs = [...text.matchAll(/(\d+)\/(\d+)/g)].map(m=>[+m[1],+m[2]]);
+      if (fracs.length >= 2) {
+        const [[n1,d1],[n2,d2]] = fracs;
+        const rn=n1*n2, rd=d1*d2, g=_gcd(rn,rd);
+        return { title: `分数のかけ算`, sections: [
+          sec('🎯 何を求めるか', `${n1}/${d1}×${n2}/${d2}の積を求めます。`),
+          sec('📝 解き方の流れ', `分子同士をかけて、分母同士をかけます。最後に約分しましょう。`),
+          sec('✏️ 計算過程', `${n1}/${d1}×${n2}/${d2}＝(${n1}×${n2})/(${d1}×${d2})＝${rn}/${rd}${g>1?`＝${rn/g}/${rd/g}`:''}${rd/g===1?` (＝${rn/g})`:''}`),
+          sec('⚠️ 間違えやすいポイント', `たし算と違い、かけ算では通分は不要！分子同士・分母同士をかけるだけです。`),
+          sec('💡 なぜそうなるか', `${n1}/${d1}×${n2}/${d2}は「全体の${n1}/${d1}の、さらに${n2}/${d2}」という意味です。`),
+        ]};
+      }
     }
-    // ===== 割合 =====
+    if (type === 'frac_div') {
+      const fracs = [...text.matchAll(/(\d+)\/(\d+)/g)].map(m=>[+m[1],+m[2]]);
+      if (fracs.length >= 2) {
+        const [[n1,d1],[n2,d2]] = fracs;
+        const rn=n1*d2, rd=d1*n2, g=_gcd(rn,rd);
+        return { title: `分数のわり算`, sections: [
+          sec('🎯 何を求めるか', `${n1}/${d1}÷${n2}/${d2}の商を求めます。`),
+          sec('📝 解き方の流れ', `分数のわり算は「割る数の逆数をかける」に直します。${n2}/${d2}の逆数は${d2}/${n2}です。`),
+          sec('✏️ 計算過程', `${n1}/${d1}÷${n2}/${d2}\n＝${n1}/${d1}×${d2}/${n2}\n＝${rn}/${rd}${g>1?`＝${rn/g}/${rd/g}`:''}${rd/g===1?` (＝${rn/g})`:''}`),
+          sec('⚠️ 間違えやすいポイント', `÷${n2}/${d2}は×${d2}/${n2}です。割られる数と割る数を逆にしないように！`),
+          sec('💡 なぜそうなるか', `A÷B＝A×(1/B)。分数Bの逆数は分子と分母を入れ替えたものです。`),
+        ]};
+      }
+    }
+
+    /* ===== 割合 ===== */
     if (type === 'percent_of') {
-      const [base, pct] = nums();
-      return {
-        title: `${base}円の${pct}%`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${base}円の${pct}%にあたる金額を求めます。` },
-          { title: '✏️ 計算過程', content: `${pct}% ＝ ${pct/100}\n${base} × ${pct/100} ＝ ${ans}円` },
-          { title: '⚠️ 間違えやすいポイント', content: `%を小数に直してかけます。${pct}%＝${pct/100}` },
-        ]
-      };
+      const [base, pct] = n;
+      return { title: `${base}円の${pct}%は？`, sections: [
+        sec('🎯 何を求めるか', `${base}円の${pct}%にあたる金額を求めます。`),
+        sec('📝 解き方の流れ', `%を小数に直してかければ求められます。${pct}%＝${pct/100}`),
+        sec('✏️ 計算過程', `${pct}%＝${pct/100}\n${base}×${pct/100}＝${ans}円`),
+        sec('⚠️ 間違えやすいポイント', `「${pct}」のままかけてはいけません。必ず${pct/100}に直してからかけましょう。`),
+        sec('💡 なぜそうなるか', `${base}円を100等分した${pct}個分。${base}÷100×${pct}＝${base/100}×${pct}＝${ans}円でも確認できます。`),
+      ]};
     }
     if (type === 'percent_discount') {
-      const ns = nums();
-      const base = ns[0], disc = ns[1];
-      return {
-        title: `${base}円の${disc}%引き`,
-        sections: [
-          { title: '📌 何を求めるか', content: `${base}円の${disc}%引きの価格を求めます。` },
-          { title: '✏️ 計算過程', content: `${disc}%引き ＝ ${100-disc}%\n${base} × ${(100-disc)/100} ＝ ${ans}円` },
-          { title: '⚠️ 間違えやすいポイント', content: `「${disc}%引き」は${100-disc}%の値段です。` },
-        ]
-      };
+      const [base, disc] = n;
+      return { title: `${base}円の${disc}%引き`, sections: [
+        sec('🎯 何を求めるか', `${base}円の${disc}%引きの価格を求めます。`),
+        sec('📝 解き方の流れ', `${disc}%引き＝元の(100－${disc})%＝${100-disc}%が残ります。`),
+        sec('✏️ 計算過程', `${base}×(1－${disc/100})\n＝${base}×${(100-disc)/100}\n＝${ans}円\n\n（または: ${base}×${disc/100}＝${base*disc/100}円引き → ${base}－${base*disc/100}＝${ans}円）`),
+        sec('⚠️ 間違えやすいポイント', `「${disc}%引き」を「${disc}%の値段」と間違えないように。${disc}%引きは${100-disc}%の値段です。`),
+        sec('💡 なぜそうなるか', `「${disc}%引き」とは「${disc}%分を引く」こと。残るのは(100－${disc})%＝${100-disc}%です。`),
+      ]};
     }
-    // ===== 図形 =====
+    if (type === 'percent_ratio') {
+      const [a, b] = n;
+      return { title: `${a}は${b}の何%？`, sections: [
+        sec('🎯 何を求めるか', `${a}が${b}の何%かを求めます。`),
+        sec('📝 解き方の流れ', `（比べる量÷もとにする量）×100 でパーセントが求まります。`),
+        sec('✏️ 計算過程', `${a}÷${b}＝${a/b}\n${a/b}×100＝${ans}%`),
+        sec('⚠️ 間違えやすいポイント', `「${b}÷${a}」と逆にしてしまう間違いが多いです。「もとにする量」（${b}）で割ります。`),
+        sec('💡 なぜそうなるか', `割合＝比べる量÷もとにする量。「${a}は${b}のうちのどのくらいか」なので${a}÷${b}です。`),
+      ]};
+    }
+
+    /* ===== 図形 ===== */
     if (type === 'area_rect') {
-      const [h, w] = nums();
-      return {
-        title: `縦${h}cm×横${w}cmの長方形`,
-        sections: [
-          { title: '📌 何を求めるか', content: `縦${h}cm、横${w}cmの長方形の面積を求めます。` },
-          { title: '✏️ 計算過程', content: `面積 ＝ ${h} × ${w} ＝ ${h*w}cm²` },
-          { title: '💡 公式', content: '長方形の面積 ＝ 縦 × 横' },
-        ]
-      };
+      const [h, w] = n;
+      return { title: `縦${h}×横${w}の長方形の面積`, sections: [
+        sec('🎯 何を求めるか', `縦${h}cm、横${w}cmの長方形の面積を求めます。`),
+        sec('📝 公式', '面積＝縦×横'),
+        sec('✏️ 計算過程', `${h}×${w}＝${h*w}cm²`),
+        sec('⚠️ 間違えやすいポイント', `単位を忘れずに。長さがcmなら面積はcm²（平方センチメートル）です。`),
+        sec('💡 なぜそうなるか', `縦${h}行×横${w}列＝${h*w}個の1cm²マスがあるイメージです。`),
+      ]};
     }
     if (type === 'area_triangle') {
-      const [base, height] = nums();
-      return {
-        title: `底辺${base}cm・高さ${height}cmの三角形`,
-        sections: [
-          { title: '📌 何を求めるか', content: `底辺${base}cm、高さ${height}cmの三角形の面積を求めます。` },
-          { title: '✏️ 計算過程', content: `面積 ＝ ${base} × ${height} ÷ 2 ＝ ${base*height}÷2 ＝ ${ans}cm²` },
-          { title: '💡 公式', content: '三角形の面積 ＝ 底辺 × 高さ ÷ 2' },
-        ]
-      };
+      const [b2, h] = n;
+      return { title: `底辺${b2}cm・高さ${h}cmの三角形の面積`, sections: [
+        sec('🎯 何を求めるか', `底辺${b2}cm、高さ${h}cmの三角形の面積を求めます。`),
+        sec('📝 公式', '面積＝底辺×高さ÷2'),
+        sec('✏️ 計算過程', `${b2}×${h}÷2＝${b2*h}÷2＝${ans}cm²`),
+        sec('⚠️ 間違えやすいポイント', `÷2を忘れると${b2*h}cm²（長方形の面積）になってしまいます。三角形は長方形の半分！`),
+        sec('💡 なぜそうなるか', `同じ三角形を2つ組み合わせると長方形になります。だから÷2します。`),
+      ]};
+    }
+    if (type === 'area_circle') {
+      const [r] = n;
+      return { title: `半径${r}cmの円の面積`, sections: [
+        sec('🎯 何を求めるか', `半径${r}cmの円の面積を求めます。`),
+        sec('📝 公式', '面積＝π×r²（πは円周率≈3.14）'),
+        sec('✏️ 計算過程', `3.14×${r}²\n＝3.14×${r*r}\n＝${ans}cm²`),
+        sec('⚠️ 間違えやすいポイント', `直径（${r*2}cm）を使わないように。公式の「r」は半径（${r}cm）です。`),
+        sec('💡 なぜそうなるか', `円周率πは円周÷直径で定義される定数（約3.14159...）。すべての円で同じ値です。`),
+      ]};
+    }
+    if (type === 'area_trapezoid') {
+      const [t, b2, h] = n;
+      return { title: `台形の面積`, sections: [
+        sec('🎯 何を求めるか', `上底${t}cm、下底${b2}cm、高さ${h}cmの台形の面積を求めます。`),
+        sec('📝 公式', '面積＝(上底＋下底)×高さ÷2'),
+        sec('✏️ 計算過程', `(${t}＋${b2})×${h}÷2\n＝${t+b2}×${h}÷2\n＝${(t+b2)*h}÷2\n＝${ans}cm²`),
+        sec('⚠️ 間違えやすいポイント', `「÷2」を忘れないように。台形は上底と下底の平均×高さと考えると覚えやすいです。`),
+        sec('💡 なぜそうなるか', `台形を2つ組み合わせると(上底＋下底)×高さの平行四辺形になります。だから÷2します。`),
+      ]};
     }
     if (type === 'circumference') {
-      const n = nums(); const r = text.includes('直径') ? n[0]/2 : n[0];
-      return {
-        title: `半径${r}cmの円の周の長さ`,
-        sections: [
-          { title: '📌 何を求めるか', content: `半径${r}cmの円の周の長さを求めます。` },
-          { title: '✏️ 計算過程', content: `円周 ＝ 2 × 3.14 × ${r} ＝ ${ans}cm` },
-          { title: '💡 公式', content: '円周 ＝ 2 × π × 半径（π≈3.14）' },
-        ]
-      };
+      const r = text.includes('直径') ? n[0]/2 : n[0];
+      const d = r*2;
+      return { title: `半径${r}cmの円の周の長さ`, sections: [
+        sec('🎯 何を求めるか', `半径${r}cmの円の周の長さを求めます。`),
+        sec('📝 公式', '円周＝2×π×半径＝直径×π'),
+        sec('✏️ 計算過程', `2×3.14×${r}\n＝${d}×3.14\n＝${ans}cm`),
+        sec('⚠️ 間違えやすいポイント', `半径と直径を混同しないように。直径は半径の2倍（${d}cm）です。`),
+        sec('💡 なぜそうなるか', `円周率πは「円周÷直径」で定義される数（約3.14159...）。つまり円周＝直径×πです。`),
+      ]};
     }
-    // ===== 方程式 =====
+    if (type === 'pythagorean') {
+      const [s] = n;
+      return { title: `1辺${s}cmの正方形の対角線`, sections: [
+        sec('🎯 何を求めるか', `1辺${s}cmの正方形の対角線の長さを求めます。`),
+        sec('📝 解き方の流れ', `対角線は直角三角形の斜辺です。三平方の定理（a²＋b²＝c²）を使います。`),
+        sec('✏️ 計算過程', `対角線²＝${s}²＋${s}²\n＝${s*s}＋${s*s}＝${s*s*2}\n対角線＝√${s*s*2}＝${s}√2\n＝${s}×1.41＝${ans}cm`),
+        sec('⚠️ 間違えやすいポイント', `√${s*s*2}を√${s*s}と混同しないように。√${s*s*2}＝√(${s*s}×2)＝${s}√2と因数分解が必要です。`),
+        sec('💡 なぜそうなるか', `正方形の対角線は、辺を斜辺とする直角二等辺三角形を作ります。三平方の定理の応用です。`),
+      ]};
+    }
+
+    /* ===== 方程式 ===== */
     if (type && type.startsWith('eq_')) {
-      return {
-        title: `方程式を解く: ${text.split('　')[0]}`,
-        sections: [
-          { title: '📌 何を求めるか', content: '方程式を解いてxの値を求めます。' },
-          { title: '✏️ 答え', content: `x ＝ ${ans}` },
-          { title: '✅ 確認', content: `x＝${ans}を元の式に代入して確認しましょう。` },
-        ]
-      };
+      const lhs = text.split('　　')[0];
+      return { title: `方程式: ${lhs}`, sections: [
+        sec('🎯 何を求めるか', `方程式を解いてxの値を求めます。`),
+        sec('📝 解き方の流れ', '文字項を左辺、定数項を右辺にまとめ、係数で割ります。'),
+        sec('✏️ 答え', `x ＝ ${ans}`),
+        sec('✅ 確認方法', `x＝${ans}を元の式「${lhs}」に代入して左辺＝右辺になることを確認しましょう。`),
+        sec('💡 方程式を解くコツ', '「xを一つにする」ことが目標。邪魔な数を移項し、xの係数で割ります。'),
+      ]};
     }
-    // ===== 負の数 =====
+
+    /* ===== 比・比例 ===== */
+    if (type === 'proportion_direct') {
+      const ns = _nums(text);
+      const x1=ns[0],y1=ns[1],x2=ns[2];
+      const k=y1/x1;
+      return { title: `正比例: x＝${x2}のときy＝?`, sections: [
+        sec('🎯 何を求めるか', `yがxに比例するとき、x＝${x2}のときのyを求めます。`),
+        sec('📝 解き方の流れ', '比例の式 y＝kx（kは比例定数）を使います。まずkを求めます。'),
+        sec('✏️ 計算過程', `k＝y÷x＝${y1}÷${x1}＝${k}\ny＝${k}x\ny＝${k}×${x2}＝${ans}`),
+        sec('⚠️ 間違えやすいポイント', `k＝x÷yと逆にしないように。「y÷x」が比例定数です。`),
+        sec('💡 なぜそうなるか', `比例とはxが増えるとyも同じ比率で増える関係。x: ${x1}→${x2}は${x2/x1}倍なのでy: ${y1}→${k*x2}も${x2/x1}倍になります。`),
+      ]};
+    }
+    if (type === 'proportion_inverse') {
+      const ns = _nums(text);
+      const x1=ns[0],y1=ns[1],x2=ns[2];
+      const k=x1*y1;
+      return { title: `反比例: x＝${x2}のときy＝?`, sections: [
+        sec('🎯 何を求めるか', `yがxに反比例するとき、x＝${x2}のときのyを求めます。`),
+        sec('📝 解き方の流れ', '反比例はx×y＝k（一定）という関係です。まずkを求めます。'),
+        sec('✏️ 計算過程', `k＝x×y＝${x1}×${y1}＝${k}\ny＝${k}÷x\ny＝${k}÷${x2}＝${ans}`),
+        sec('⚠️ 間違えやすいポイント', `正比例（y÷x＝k）と反比例（x×y＝k）を混同しないように。反比例はxが増えるとyは減ります。`),
+        sec('💡 なぜそうなるか', `xとyの積が常に${k}。x＝${x2}になるとy＝${k}÷${x2}＝${ans}になります。`),
+      ]};
+    }
+
+    /* ===== 負の数 ===== */
     if (type && type.startsWith('neg_')) {
-      return {
-        title: `${text.replace(' ＝ ?','')} の計算`,
-        sections: [
-          { title: '📌 何を求めるか', content: '負の数を含む計算をします。' },
-          { title: '✏️ 計算結果', content: `${text.replace(' ＝ ?','')} ＝ ${ans}` },
-          { title: '💡 符号のルール', content: '(+)×(+)=(+)、(-)×(-)=(+)、(+)×(-)=(-)、(-)×(+)=(-)' },
-        ]
-      };
+      return { title: `負の数の計算: ${text.replace(' ＝ ?','')}`, sections: [
+        sec('🎯 何を求めるか', `負の数を含む計算の答えを求めます。`),
+        sec('📝 符号のルール', `➕×➕＝➕\n➖×➖＝➕\n➕×➖＝➖\n➖×➕＝➖`),
+        sec('✏️ 計算結果', `${text.replace(' ＝ ?','')} ＝ ${ans}`),
+        sec('⚠️ 間違えやすいポイント', `マイナス同士のかけ算はプラスになります！「マイナス×マイナス＝マイナス」は間違いです。`),
+        sec('💡 なぜそうなるか', `数直線で考えると理解しやすいです。負の方向を2回向くと正の方向になります。`),
+      ]};
     }
-    // ===== 平方根 =====
-    if (type && type.startsWith('sqrt_')) {
-      return {
-        title: `根号の計算: ${text.replace(' ＝ ?','')}`,
-        sections: [
-          { title: '📌 何を求めるか', content: '根号を含む計算をします。' },
-          { title: '✏️ 計算結果', content: `${text.replace(' ＝ ?','')} ＝ ${ans}` },
-          { title: '💡 ポイント', content: '平方数を根号の外に出すことで簡単にできます。' },
-        ]
-      };
+
+    /* ===== 平方根 ===== */
+    if (type === 'sqrt_int') {
+      const [v] = n;
+      return { title: `√${v}＝?`, sections: [
+        sec('🎯 何を求めるか', `${v}の平方根（√${v}）を求めます。`),
+        sec('📝 解き方の流れ', `「何を2乗したら${v}になるか」を考えます。`),
+        sec('✏️ 計算過程', `${ans}²＝${+ans * +ans}\n√${v}＝${ans}`),
+        sec('⚠️ 間違えやすいポイント', `√${v}を${v}÷2と計算しないように。平方根は「2乗の逆操作」です。`),
+        sec('💡 なぜそうなるか', `√aは「a の2乗根」。√${v}＝${ans}とは「${ans}²＝${v}」ということです。`),
+      ]};
     }
-    // ===== 比・比例 =====
-    if (type && (type.startsWith('proportion') || type === 'ratio_simplify')) {
-      return {
-        title: `${text.split('。')[0]}`,
-        sections: [
-          { title: '📌 何を求めるか', content: '比・比例の問題を解きます。' },
-          { title: '✏️ 答え', content: `${ans}` },
-          { title: '💡 ポイント', content: type === 'ratio_simplify' ? '最大公約数(GCD)で両方を割ります。' : '比例定数k=y÷x（正比例）またはk=x×y（反比例）' },
-        ]
-      };
+    if (type === 'sqrt_simplify') {
+      const [v] = n;
+      let maxSq = 1;
+      for (let i = Math.floor(Math.sqrt(v)); i >= 2; i--) {
+        if (v % (i*i) === 0) { maxSq = i*i; break; }
+      }
+      const outside = Math.sqrt(maxSq);
+      const inside  = v / maxSq;
+      return { title: `√${v}を簡単に`, sections: [
+        sec('🎯 何を求めるか', `√${v}をa√bの形に簡単にします。`),
+        sec('📝 解き方の流れ', `${v}を「平方数×残り」に因数分解して、平方数を根号の外に出します。`),
+        sec('✏️ 計算過程', `${v}＝${maxSq}×${inside}\n√${v}＝√(${maxSq}×${inside})\n＝√${maxSq}×√${inside}\n＝${outside}√${inside}`),
+        sec('⚠️ 間違えやすいポイント', `√(A×B)＝√A×√Bですが、√(A＋B)≠√A＋√Bです！掛け算のときだけ分けられます。`),
+        sec('💡 なぜそうなるか', `平方数は1,4,9,16,25,36...。${v}に含まれる最大の平方数${maxSq}(＝${outside}²)を見つけて根号の外に出します。`),
+      ]};
     }
-  } catch(e) {
-    // パース失敗時はfallback
-  }
-  return null; // fallbackでlongExplanationを使う
+    if (type === 'sqrt_add') {
+      return { title: `根号の加法`, sections: [
+        sec('🎯 何を求めるか', `根号を含む式を計算・整理します。`),
+        sec('📝 解き方の流れ', `それぞれの根号を簡単にしてから、√の中が同じもの（同類項）を足します。`),
+        sec('✏️ 計算結果', `${text.replace(' を簡単にしなさい。','').replace(' ＝ ?','')} ＝ ${ans}`),
+        sec('⚠️ 間違えやすいポイント', `√8＋√18≠√26です。根号の中を直接足してはいけません！同類項にしてから足します。`),
+        sec('💡 なぜそうなるか', `√2と√2のように√の中が同じなら「係数」として足せます（2√2＋3√2＝5√2）。`),
+      ]};
+    }
+    if (type === 'sqrt_expand') {
+      return { title: `根号を含む展開`, sections: [
+        sec('🎯 何を求めるか', `根号を含む式を展開して整理します。`),
+        sec('📝 解き方の流れ', `(a＋b)²＝a²＋2ab＋b²の展開公式を使います。`),
+        sec('✏️ 計算結果', `${text.replace(' を展開して整理しなさい。','').replace(' ＝ ?','')} ＝ ${ans}`),
+        sec('⚠️ 間違えやすいポイント', `(a＋b)²を「a²＋b²」とするのは大間違い！中間項の2abを必ず含めましょう。`),
+        sec('💡 なぜそうなるか', `(a＋b)²＝(a＋b)(a＋b)をFOIL展開すると a²＋ab＋ba＋b²＝a²＋2ab＋b²です。`),
+      ]};
+    }
+
+  } catch(e) { /* パース失敗 → fallback */ }
+  return null;
 }
 
 
@@ -4992,7 +5368,9 @@ function bindEvents() {
   // ヒント
   document.getElementById('btnHint').addEventListener('click', () => {
     const q = currentQ();
-    if (q && q.hint) document.getElementById('hintText').textContent = q.hint;
+    if (!q) return;
+    const hint = generateHint(q) || q.hint || 'ヒントがありません';
+    document.getElementById('hintText').textContent = hint;
   });
 
   // ---- 誤答解説「リベンジ！」----
