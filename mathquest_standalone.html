@@ -2129,7 +2129,7 @@ html, body {
       </div>
 
       <p class="title-tagline">知識を武器に、数の魔王を倒せ！</p>
-      <p class="title-version">ver 1.22</p>
+      <p class="title-version">ver 1.21</p>
     </div>
   </div>
 
@@ -2173,7 +2173,7 @@ html, body {
     <div class="scene-bg scene-castle"></div>
     <div class="hud"><div class="hud-player" id="hudPlayer"></div></div>
     <div class="category-container">
-      <h2 class="section-title">⚔ 戦場を選べ</h2>
+      <h2 class="section-title">⚔ ダンジョンを選ぼう！</h2>
       <button class="btn-back" id="btnBackToMode">← 戻る</button>
       <div class="category-grid" id="categoryGrid"></div>
     </div>
@@ -3141,18 +3141,18 @@ function generateExplanation(q) {
  */
 
 const CATEGORIES = [
-  { id: 'addition',       name: 'たし算',       icon: '➕', color: '#27ae60', gradeLabel: '小1〜小2相当', levelUnlock: 1 },
-  { id: 'subtraction',    name: 'ひき算',       icon: '➖', color: '#2980b9', gradeLabel: '小1〜小2相当', levelUnlock: 1 },
-  { id: 'multiplication', name: 'かけ算',       icon: '✖️', color: '#8e44ad', gradeLabel: '小2〜小3相当', levelUnlock: 1 },
-  { id: 'division',       name: 'わり算',       icon: '➗', color: '#e67e22', gradeLabel: '小3〜小4相当', levelUnlock: 1 },
-  { id: 'decimals',       name: '小数',         icon: '🔸', color: '#16a085', gradeLabel: '小4〜小5相当', levelUnlock: 3 },
-  { id: 'fractions',      name: '分数',         icon: '🔢', color: '#c0392b', gradeLabel: '小4〜小6相当', levelUnlock: 4 },
-  { id: 'percentages',    name: '割合・百分率', icon: '📊', color: '#d35400', gradeLabel: '小5〜小6相当', levelUnlock: 5 },
-  { id: 'geometry',       name: '図形・面積',   icon: '📐', color: '#1abc9c', gradeLabel: '小4〜中1相当', levelUnlock: 6 },
-  { id: 'ratio',          name: '比と比例',     icon: '🔗', color: '#3498db', gradeLabel: '小6〜中2相当', levelUnlock: 7 },
-  { id: 'equations',      name: '方程式',       icon: '⚖️', color: '#2c3e50', gradeLabel: '中1〜中3相当', levelUnlock: 8 },
-  { id: 'negative',       name: '負の数',       icon: '🔻', color: '#7f8c8d', gradeLabel: '中1〜中2相当', levelUnlock: 9 },
-  { id: 'powers',         name: '累乗・平方根', icon: '⚡', color: '#f1c40f', gradeLabel: '中3〜高1相当', levelUnlock: 11 },
+  { id: 'addition',       name: 'たし算草原',       icon: '➕', color: '#27ae60', gradeLabel: '小1〜小2相当', levelUnlock: 1 },
+  { id: 'subtraction',    name: 'ひき算の森',       icon: '➖', color: '#2980b9', gradeLabel: '小1〜小2相当', levelUnlock: 1 },
+  { id: 'multiplication', name: 'かけ算の樹海',       icon: '✖️', color: '#8e44ad', gradeLabel: '小2〜小3相当', levelUnlock: 1 },
+  { id: 'division',       name: 'わり算の稠林',       icon: '➗', color: '#e67e22', gradeLabel: '小3〜小4相当', levelUnlock: 1 },
+  { id: 'decimals',       name: '小数火山',         icon: '🔸', color: '#16a085', gradeLabel: '小4〜小5相当', levelUnlock: 3 },
+  { id: 'fractions',      name: '分数雪山',         icon: '🔢', color: '#c0392b', gradeLabel: '小4〜小6相当', levelUnlock: 4 },
+  { id: 'percentages',    name: '割合と百分率の渓谷', icon: '📊', color: '#d35400', gradeLabel: '小5〜小6相当', levelUnlock: 5 },
+  { id: 'geometry',       name: '図形と面積の峡谷',   icon: '📐', color: '#1abc9c', gradeLabel: '小4〜中1相当', levelUnlock: 6 },
+  { id: 'ratio',          name: '比と比例の洞窟',     icon: '🔗', color: '#3498db', gradeLabel: '小6〜中2相当', levelUnlock: 7 },
+  { id: 'equations',      name: '方程式の巣穴',       icon: '⚖️', color: '#2c3e50', gradeLabel: '中1〜中3相当', levelUnlock: 8 },
+  { id: 'negative',       name: '負の数灼洞',       icon: '🔻', color: '#7f8c8d', gradeLabel: '中1〜中2相当', levelUnlock: 9 },
+  { id: 'powers',         name: '累乗と平方根の楼閣', icon: '⚡', color: '#f1c40f', gradeLabel: '中3〜高1相当', levelUnlock: 11 },
 ];
 
 function _le(title, pts, proc, warn, why) {
@@ -5067,10 +5067,14 @@ const UI = {
     } else {
       banner.classList.add('hidden');
     }
-    // リベンジ戦のときはボタンを差し替え
+    // モードに応じてボタンラベルを切り替え
     const isRevenge = AppState.currentMode === 'revenge';
+    const isSelect  = AppState.currentMode === 'select';
     document.getElementById('btnPlayAgain').textContent = isRevenge ? '冒険へ出る！' : 'もう一度！';
-    document.getElementById('btnBackToMap').textContent = isRevenge ? 'スタート画面に戻る' : 'モード選択へ';
+    document.getElementById('btnBackToMap').textContent =
+      isRevenge ? 'スタート画面に戻る' :
+      isSelect  ? '戦場を選び直す' :
+                  'モード選択へ';
   },
 
   async renderStatus(user, progress) {
@@ -5585,6 +5589,8 @@ function bindEvents() {
     if (AppState.currentMode === 'revenge') {
       UI.showScreen('title');
       UI.hideNav();
+    } else if (AppState.currentMode === 'select') {
+      gotoCategory(); // ダンジョンモードは「ダンジョンを選ぼう！」画面に戻る
     } else {
       gotoMode();
     }
