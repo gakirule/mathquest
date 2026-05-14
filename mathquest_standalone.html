@@ -1494,6 +1494,101 @@ html, body {
   display: none !important;
   pointer-events: none !important;
 }
+
+/* ===================================================
+   ひっ算メモ帳
+=================================================== */
+.btn-memo {
+  background: rgba(255,215,0,0.15);
+  border: 1px solid rgba(255,215,0,0.4);
+  color: #ffd700;
+}
+.btn-memo:active {
+  background: rgba(255,215,0,0.3);
+}
+
+.memo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.memo-overlay.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.memo-panel {
+  background: #1e1a2e;
+  border: 2px solid rgba(255,215,0,0.4);
+  border-radius: 16px;
+  box-shadow: 0 0 30px rgba(255,215,0,0.15);
+  display: flex;
+  flex-direction: column;
+  width: min(92vw, 560px);
+  max-height: 88vh;
+  overflow: hidden;
+}
+
+.memo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255,215,0,0.2);
+  background: rgba(255,215,0,0.05);
+  flex-shrink: 0;
+}
+.memo-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 0.05em;
+}
+.memo-header-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+.memo-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.memo-btn-close {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+.memo-btn-clear {
+  background: rgba(192,57,43,0.25);
+  border-color: rgba(192,57,43,0.5);
+  color: #ff8888;
+}
+
+.memo-canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  background: #f8f5e8;
+  position: relative;
+  border-radius: 0 0 14px 14px;
+  min-height: 300px;
+}
+.memo-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
 .explanation-overlay.hidden { display: none !important; }
 
 .expl-panel {
@@ -2242,6 +2337,7 @@ html, body {
         </div>
         <div class="hint-row">
           <button class="btn-hint" id="btnHint">💡 ヒント</button>
+          <button class="btn-hint btn-memo" id="btnMemo">📝 メモ</button>
           <span class="hint-text" id="hintText"></span>
         </div>
       </div>
@@ -2293,6 +2389,22 @@ html, body {
 
     </div>
   </div><!-- /#screen-battle -->
+
+  <!-- ========== ひっ算メモ帳オーバーレイ ========== -->
+  <div id="overlay-memo" class="memo-overlay hidden">
+    <div class="memo-panel">
+      <div class="memo-header">
+        <span class="memo-title">📝 ひっ算メモ</span>
+        <div class="memo-header-btns">
+          <button class="memo-btn memo-btn-clear" id="btnMemoClear">🗑 けす</button>
+          <button class="memo-btn memo-btn-close" id="btnMemoClose">✕ とじる</button>
+        </div>
+      </div>
+      <div class="memo-canvas-wrap">
+        <canvas id="memoCanvas" class="memo-canvas"></canvas>
+      </div>
+    </div>
+  </div>
 
   <!-- ========== 誤答解説オーバーレイ（全画面） ========== -->
   <!-- ★ 誤答解説オーバーレイ：body直下・最後尾に配置でz-index最優先 -->
@@ -5434,6 +5546,10 @@ const AppState = {
   currentEnemy: null,   // { maxHp, hp, type, grade }
   defeatedCount: 0,     // セッション中の撃破数
   defeatPending: false, // 撃破演出中フラグ
+
+  // メモ帳
+  memoOpen: false,
+  memoDrawing: false,
 };
 
 // -------------------------------------------------------
@@ -5518,7 +5634,7 @@ function bindEvents() {
     if (e.isComposing || e.keyCode === 229) return;
     e.preventDefault();
     e.stopPropagation();
-    if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending) return;
+    if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending || AppState.memoOpen) return;
     submitAnswer();
   });
 
@@ -5528,6 +5644,36 @@ function bindEvents() {
     if (!q) return;
     const hint = generateHint(q) || q.hint || 'ヒントがありません';
     document.getElementById('hintText').textContent = hint;
+  });
+
+  // メモ帳ボタン
+  getElementById('btnMemo').addEventListener('click', () => {
+    MemoSystem.open();
+  });
+
+  // メモ帳：とじるボタン
+  getElementById('btnMemoClose').addEventListener('click', () => {
+    MemoSystem.close();
+  });
+
+  // メモ帳：けす（削除）ボタン
+  getElementById('btnMemoClear').addEventListener('click', async () => {
+    const ok = await new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
+      ov.innerHTML = `
+        <div style="background:#1a1a2e;border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:1.5rem;max-width:300px;width:100%;text-align:center;">
+          <div style="font-size:1rem;color:#fff;margin-bottom:1.25rem;line-height:1.6;">メモの内容を全部<br>けしますか？</div>
+          <div style="display:flex;gap:0.75rem;justify-content:center;">
+            <button id="_memoNo"  style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:transparent;color:#fff;cursor:pointer;font-size:0.9rem;">やめる</button>
+            <button id="_memoYes" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:#c0392b;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;">けす</button>
+          </div>
+        </div>`;
+      document.body.appendChild(ov);
+      ov.querySelector('#_memoYes').addEventListener('click', () => { ov.remove(); resolve(true); });
+      ov.querySelector('#_memoNo').addEventListener('click',  () => { ov.remove(); resolve(false); });
+    });
+    if (ok) MemoSystem.clear();
   });
 
   // ---- 誤答解説「リベンジ！」----
@@ -5566,6 +5712,8 @@ function bindEvents() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     if (document.activeElement === document.getElementById('answerInput')) return;
+    // メモ帳表示中はキー操作を無効化
+    if (AppState.memoOpen) { e.preventDefault(); return; }
     if (AppState.explanationVisible) {
       e.preventDefault();
       const goBtn = document.getElementById('btnGameOverFromExpl');
@@ -5820,7 +5968,7 @@ function showCurrentQuestion() {
 // 回答送信
 // -------------------------------------------------------
 async function submitAnswer() {
-  if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending) return;
+  if (AppState.overlayVisible || AppState.explanationVisible || AppState.defeatPending || AppState.memoOpen) return;
 
   const input = document.getElementById('answerInput');
   if (!input || input.disabled) return;
@@ -6047,6 +6195,171 @@ async function gotoStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
+
+
+/* ============================================================
+   ひっ算メモ帳システム
+============================================================ */
+const MemoSystem = (() => {
+  const STORAGE_KEY = 'mathquest_memo_v1';
+  let canvas = null, ctx = null;
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+  let initialized = false;
+
+  // CanvasのCSS→実ピクセル座標変換
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.clientX != null ? e.clientX : (e.touches ? e.touches[0].clientX : 0);
+    const clientY = e.clientY != null ? e.clientY : (e.touches ? e.touches[0].clientY : 0);
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top)  * scaleY,
+    };
+  }
+
+  // canvasを実ピクセルサイズに合わせる（内容保持）
+  function resizeCanvas() {
+    const wrap = canvas.parentElement;
+    const dpr  = window.devicePixelRatio || 1;
+    const w    = Math.round(wrap.clientWidth  * dpr);
+    const h    = Math.round(wrap.clientHeight * dpr);
+    if (canvas.width === w && canvas.height === h) return;
+
+    // 既存内容をオフスクリーンに退避
+    let offscreen = null;
+    if (canvas.width > 0 && canvas.height > 0) {
+      offscreen = document.createElement('canvas');
+      offscreen.width  = canvas.width;
+      offscreen.height = canvas.height;
+      offscreen.getContext('2d').drawImage(canvas, 0, 0);
+    }
+    canvas.width  = w;
+    canvas.height = h;
+
+    // 背景
+    ctx.fillStyle = '#f8f5e8';
+    ctx.fillRect(0, 0, w, h);
+
+    // 退避内容を復元
+    if (offscreen) ctx.drawImage(offscreen, 0, 0, w, h);
+
+    // スタイル設定
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth   = 2.5 * dpr;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+
+  function applyPenStyle() {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth   = 2.5 * dpr;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+  }
+
+  // ローカルストレージに保存
+  function save() {
+    try {
+      const data = canvas.toDataURL('image/png');
+      localStorage.setItem(STORAGE_KEY, data);
+    } catch(e) { /* 容量超過等は無視 */ }
+  }
+
+  // ローカルストレージから復元
+  function restore() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (!data) return;
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = '#f8f5e8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        applyPenStyle();
+      };
+      img.src = data;
+    } catch(e) {}
+  }
+
+  // 描画イベント
+  function onDown(e) {
+    if (e.pointerType !== undefined) {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+    }
+    AppState.memoDrawing = true;
+    drawing = true;
+    const pos = getPos(e);
+    lastX = pos.x; lastY = pos.y;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+  }
+  function onMove(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastX = pos.x; lastY = pos.y;
+  }
+  function onUp(e) {
+    if (!drawing) return;
+    drawing = false;
+    AppState.memoDrawing = false;
+    ctx.closePath();
+    save(); // 描画終了ごとに自動保存
+  }
+
+  function init() {
+    if (initialized) return;
+    canvas = document.getElementById('memoCanvas');
+    ctx    = canvas.getContext('2d');
+
+    // Pointer Events（マウス・タッチ・ペン統一）
+    canvas.addEventListener('pointerdown',   onDown,  { passive: false });
+    canvas.addEventListener('pointermove',   onMove,  { passive: false });
+    canvas.addEventListener('pointerup',     onUp);
+    canvas.addEventListener('pointercancel', onUp);
+
+    initialized = true;
+  }
+
+  return {
+    open() {
+      init();
+      const overlay = document.getElementById('overlay-memo');
+      overlay.classList.remove('hidden');
+      AppState.memoOpen = true;
+
+      // Canvas サイズ調整 → 保存データ復元
+      requestAnimationFrame(() => {
+        resizeCanvas();
+        restore();
+        applyPenStyle();
+      });
+    },
+
+    close() {
+      save();
+      document.getElementById('overlay-memo').classList.add('hidden');
+      AppState.memoOpen    = false;
+      AppState.memoDrawing = false;
+      drawing = false;
+    },
+
+    clear() {
+      if (!canvas) return;
+      ctx.fillStyle = '#f8f5e8';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      applyPenStyle();
+      try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    },
+  };
+})();
 
 
 /* ============================================================
