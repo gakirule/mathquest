@@ -1498,6 +1498,15 @@ html, body {
 /* ===================================================
    ひっ算メモ帳
 =================================================== */
+.btn-memo-inline {
+  background: rgba(255,215,0,0.12);
+  border-color: rgba(255,215,0,0.5);
+  color: #ffd700;
+}
+.btn-memo-inline:active {
+  background: rgba(255,215,0,0.25);
+}
+
 .btn-memo-float {
   position: fixed;
   bottom: 5rem;
@@ -1531,11 +1540,19 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 700;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.92);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+@media (min-width: 600px) {
+  .memo-overlay {
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(0,0,0,0.75);
+  }
 }
 .memo-overlay.hidden {
   display: none !important;
@@ -1544,14 +1561,23 @@ html, body {
 
 .memo-panel {
   background: #1e1a2e;
-  border: 2px solid rgba(255,215,0,0.4);
-  border-radius: 16px;
-  box-shadow: 0 0 30px rgba(255,215,0,0.15);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  width: min(92vw, 560px);
-  max-height: 88vh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
+}
+@media (min-width: 600px) {
+  .memo-panel {
+    border: 2px solid rgba(255,215,0,0.4);
+    border-radius: 16px;
+    box-shadow: 0 0 30px rgba(255,215,0,0.15);
+    width: min(92vw, 600px);
+    height: min(88vh, 700px);
+  }
 }
 
 .memo-header {
@@ -2357,6 +2383,7 @@ html, body {
         </div>
         <div class="hint-row">
           <button class="btn-hint" id="btnHint">💡 ヒント</button>
+          <button class="btn-hint btn-memo-inline" id="btnMemoInline">📝 メモ</button>
           <span class="hint-text" id="hintText"></span>
         </div>
       </div>
@@ -5668,8 +5695,8 @@ function bindEvents() {
     document.getElementById('hintText').textContent = hint;
   });
 
-  // メモ帳ボタン
-  document.getElementById('btnMemo').addEventListener('click', () => {
+  // メモ帳ボタン（hint-row内インライン）
+  document.getElementById('btnMemoInline').addEventListener('click', () => {
     MemoSystem.open();
   });
 
@@ -5962,9 +5989,7 @@ function showCurrentQuestion() {
   AppState.overlayVisible     = false;
   AppState.explanationVisible = false;
 
-  // フローティングメモボタンを表示
-  const memoBtn = document.getElementById('btnMemo');
-  if (memoBtn) memoBtn.classList.remove('hidden');
+  // フローティングメモボタンは使用しない（hint-row内ボタンを使用）
 
   // 問題が変わるたびに必ず最上部へ
   const sb = document.getElementById('screen-battle');
