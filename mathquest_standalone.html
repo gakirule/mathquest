@@ -5669,17 +5669,17 @@ function bindEvents() {
   });
 
   // メモ帳ボタン
-  getElementById('btnMemo').addEventListener('click', () => {
+  document.getElementById('btnMemo').addEventListener('click', () => {
     MemoSystem.open();
   });
 
   // メモ帳：とじるボタン
-  getElementById('btnMemoClose').addEventListener('click', () => {
+  document.getElementById('btnMemoClose').addEventListener('click', () => {
     MemoSystem.close();
   });
 
   // メモ帳：けす（削除）ボタン
-  getElementById('btnMemoClear').addEventListener('click', async () => {
+  document.getElementById('btnMemoClear').addEventListener('click', async () => {
     const ok = await new Promise(resolve => {
       const ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem;';
